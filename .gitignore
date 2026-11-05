@@ -1,0 +1,14 @@
+# Windows executables and dlls from root if needed
+*.user
+*.suo
+.vs/
+
+# Flutter / Dart
+**/android/.gradle/
+**/android/app/build/
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/pubspec.lock

@@ -1,0 +1,2310 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HD2020 Studio V10 - Pro Edition (Đầy Đủ Tính Năng & Hiệu Ứng HD2020)</title>
+    <style>
+        :root {
+            --hd-bg: #ece9d8;
+            --hd-panel: #f5f6f7;
+            --hd-border: #99a3b2;
+            --hd-border-dark: #3e4451;
+            --hd-ribbon-bg: linear-gradient(180deg, #ffffff 0%, #eaedf2 100%);
+            --hd-accent: #0078d7;
+            --text-dark: #1f2328;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12px;
+            user-select: none;
+        }
+
+        body {
+            background-color: #d1d6de;
+            color: var(--text-dark);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Window Titlebar */
+        .window-titlebar {
+            background: #ffffff;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            border-bottom: 1px solid #dcdcdc;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .window-titlebar .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #1a1a1a;
+        }
+
+        /* Menu Bar */
+        .menubar {
+            background: #fafafa;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            border-bottom: 1px solid #e1e4e8;
+            gap: 2px;
+        }
+
+        .menu-item {
+            padding: 2px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .menu-item:hover { background: #e5ebf2; }
+
+        /* Toolbar */
+        .toolbar {
+            background: var(--hd-ribbon-bg);
+            border-bottom: 1px solid #cbd2dc;
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        .tb-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding-right: 8px;
+            border-right: 1px solid #cbd2dc;
+        }
+
+        .tb-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3px 10px;
+            min-width: 54px;
+            height: 46px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.1s;
+            font-size: 11px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .tb-btn svg { width: 20px; height: 20px; margin-bottom: 2px; }
+        .tb-btn:hover { background: #e3ecf7; border-color: #a4c4e8; }
+
+        .tb-btn.primary-sync {
+            background: linear-gradient(180deg, #e6f9ed 0%, #c1ebd0 100%);
+            border: 1.5px solid #28a745;
+            color: #0d5f1d;
+            font-weight: 800;
+            min-width: 170px;
+        }
+
+        .tb-btn.primary-sync:hover {
+            background: linear-gradient(180deg, #d3f4de 0%, #a4e4ba 100%);
+        }
+
+        /* Board Selector Bar */
+        .board-selector-bar {
+            background: #1c202a;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            overflow-x: auto;
+        }
+
+        .board-tabs-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow-x: auto;
+            flex: 1;
+        }
+
+        .board-tab {
+            padding: 5px 12px;
+            background: #282e3c;
+            color: #b5c0d0;
+            border: 1px solid #3c4456;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .board-tab:hover { background: #353d4f; color: #fff; }
+
+        .board-tab.active {
+            background: #0078d7;
+            color: #fff;
+            border-color: #005a9e;
+            box-shadow: 0 0 10px rgba(0,120,215,0.4);
+        }
+
+        .board-tab-badge {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: normal;
+        }
+
+        .board-tab-del {
+            opacity: 0.6;
+            margin-left: 2px;
+            font-weight: bold;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .board-tab-del:hover { opacity: 1; color: #ff5252; }
+
+        .btn-action-small {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #3c4456;
+            background: #282e3c;
+            color: #7ce7ac;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .btn-action-small:hover {
+            background: #353d4f;
+            border-color: #28a745;
+            color: #fff;
+        }
+
+        .btn-add-board {
+            background: #0d47a1;
+            border-color: #1976d2;
+            color: #bbdefb;
+        }
+        .btn-add-board:hover {
+            background: #1565c0;
+            color: #fff;
+        }
+
+        .wifi-detected-box {
+            font-size: 11px;
+            color: #7ce7ac;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        /* Main Workspace: 3 Columns */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        /* Left Tree View */
+        .left-tree-panel {
+            width: 210px;
+            border-right: 1px solid var(--hd-border);
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tree-header {
+            background: #f0f2f5;
+            padding: 6px 10px;
+            font-weight: 700;
+            border-bottom: 1px solid var(--hd-border);
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tree-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .tree-card {
+            border: 1px solid #d0d7de;
+            border-radius: 4px;
+            padding: 6px 8px;
+            cursor: pointer;
+            background: #fdfdfd;
+            transition: all 0.1s;
+        }
+
+        .tree-card:hover { background: #f0f4f8; }
+        .tree-card.active {
+            border-color: #0078d7;
+            background: #eef6fd;
+            border-left: 4px solid #0078d7;
+        }
+
+        .tree-card-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 2px;
+        }
+
+        .tree-card-text {
+            font-size: 11px;
+            color: #555;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Center Visual Display */
+        .center-workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #252830;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .screen-info-bar {
+            height: 26px;
+            background: #1b1e24;
+            border-bottom: 1px solid #101216;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            font-size: 11px;
+            color: #9da5b4;
+        }
+
+        .canvas-viewport {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background-color: #16181d;
+            background-image: 
+                linear-gradient(45deg, #1b1e24 25%, transparent 25%), 
+                linear-gradient(-45deg, #1b1e24 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1b1e24 75%), 
+                linear-gradient(-45deg, transparent 75%, #1b1e24 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+        }
+
+        .canvas-frame {
+            padding: 10px;
+            background: #000;
+            border: 3px solid #333a46;
+            border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        #ledCanvas {
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        .canvas-controls {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: rgba(28, 32, 42, 0.85);
+            padding: 4px 10px;
+            border-radius: 20px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-weight: 600;
+        }
+
+        /* Right Panel */
+        .right-panel {
+            width: 270px;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--hd-border);
+        }
+
+        .tabs-header {
+            display: flex;
+            background: #f0f2f5;
+            border-bottom: 1px solid var(--hd-border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 6px 12px;
+            text-align: center;
+            cursor: pointer;
+            border-right: 1px solid var(--hd-border);
+            background: #f0f2f5;
+            font-weight: 600;
+        }
+
+        .tab-btn.active {
+            background: #fff;
+            border-bottom: 2px solid #0078d7;
+            color: #0078d7;
+        }
+
+        .tab-content {
+            flex: 1;
+            padding: 8px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .log-box {
+            flex: 1;
+            background: #080a0f;
+            border: 1px solid #1e2230;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            color: #00e676;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+
+        /* Bottom Inspector Panel - EXACT HD2020 PRO LAYOUT */
+        .bottom-panel {
+            height: 260px;
+            border-top: 1px solid var(--hd-border);
+            background: #f5f6f7;
+            display: flex;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .bot-col-attr {
+            width: 140px;
+            min-width: 140px;
+            border-right: 1px solid #e1e4e8;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: #fafafa;
+        }
+
+        .bot-col-attr .title {
+            font-weight: 700;
+            color: #444;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 3px;
+            font-size: 11px;
+        }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+        }
+
+        .form-row label { color: #666; font-size: 11px; }
+        .form-row input, .form-row select {
+            width: 65px;
+            padding: 2px 4px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            text-align: right;
+            font-size: 11px;
+        }
+
+        /* Bot Editor Area */
+        .bot-col-editor {
+            flex: 1;
+            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e1e4e8;
+            background: #fff;
+            position: relative;
+        }
+
+        .editor-header-tag {
+            background: #eef6fd;
+            padding: 3px 8px;
+            border-bottom: 1px solid #d0e3f7;
+            font-weight: 700;
+            color: #005a9e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+        }
+
+        .editor-toolbar {
+            background: #f4f6f8;
+            border-bottom: 1px solid #e1e4e8;
+            padding: 4px 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .editor-toolbar select {
+            padding: 2px 4px;
+            border: 1px solid #ccd1d9;
+            border-radius: 3px;
+            background: #fff;
+            outline: none;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        /* HD2020 Special Buttons [AB] and [A] */
+        .btn-hd-tool {
+            padding: 2px 6px;
+            border: 1px solid #ccd1d9;
+            border-radius: 3px;
+            background: #ffffff;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 22px;
+            transition: all 0.1s;
+        }
+        .btn-hd-tool:hover { background: #e3f2fd; border-color: #90caf9; }
+        .btn-hd-tool.active {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            box-shadow: 0 0 3px rgba(33,150,243,0.5);
+        }
+
+        .btn-colorful-words {
+            font-weight: 900;
+            background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0000ff, #8800ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border: 1.5px solid #28a745;
+            padding: 1px 7px;
+            font-size: 12px;
+        }
+        .btn-colorful-words.active {
+            background-color: #fff9db;
+            border-color: #f59f00;
+        }
+
+        .btn-text-style {
+            font-weight: bold;
+            color: #495057;
+            border: 1px solid #adb5bd;
+            padding: 1px 6px;
+        }
+
+        .editor-textarea {
+            flex: 1;
+            background: #000000;
+            color: #00e676;
+            padding: 8px 10px;
+            border: none;
+            outline: none;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+            font-weight: bold;
+            resize: none;
+            line-height: 1.3;
+            user-select: text;
+        }
+
+        /* Alignment Button Group */
+        .align-group {
+            display: flex;
+            align-items: center;
+            border: 1px solid #ccd1d9;
+            border-radius: 3px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .align-btn {
+            padding: 2px 5px;
+            background: #fff;
+            border: none;
+            border-right: 1px solid #e1e4e8;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            height: 20px;
+            transition: all 0.1s;
+        }
+
+        .align-btn:last-child { border-right: none; }
+        .align-btn:hover { background: #eaf2fb; }
+        .align-btn.active {
+            background: #0078d7;
+            color: #fff;
+        }
+
+        /* Color Badges Row */
+        .color-chips-row {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .color-dot-btn {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s;
+        }
+
+        .color-dot-btn:hover { transform: scale(1.15); }
+        .color-dot-btn.active {
+            border-color: #222;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        /* Right Inspector Columns: Effect, Run border, Background, Sync */
+        .bot-col-effect {
+            width: 180px;
+            min-width: 180px;
+            border-right: 1px solid #e1e4e8;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: #fafafa;
+        }
+
+        .bot-col-border {
+            width: 170px;
+            min-width: 170px;
+            border-right: 1px solid #e1e4e8;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: #fafafa;
+        }
+
+        .bot-col-bg {
+            width: 140px;
+            min-width: 140px;
+            border-right: 1px solid #e1e4e8;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: #fafafa;
+        }
+
+        .panel-header-title {
+            font-weight: 700;
+            color: #333;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 3px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .bot-col-effect select, .bot-col-border select, .bot-col-bg select {
+            width: 100%;
+            padding: 2px 4px;
+            border: 1px solid #ccd1d9;
+            border-radius: 3px;
+            background: #fff;
+            font-size: 11px;
+        }
+
+        /* Bot Col Sync Action */
+        .bot-col-sync {
+            width: 220px;
+            min-width: 220px;
+            padding: 8px 10px;
+            background: #f0f7ff;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .btn-big-send {
+            width: 100%;
+            height: 52px;
+            background: linear-gradient(180deg, #34d058 0%, #28a745 100%);
+            color: #fff;
+            font-weight: 800;
+            font-size: 12px;
+            border: 1.5px solid #22863a;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(40,167,69,0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-transform: uppercase;
+        }
+
+        .btn-big-send:hover {
+            background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
+        }
+
+        .btn-big-send:disabled {
+            background: #95a5a6;
+            border-color: #7f8c8d;
+            cursor: not-allowed;
+        }
+
+        /* HD2020 Popups: Colorful Words and Text Effects */
+        .popup-menu {
+            position: absolute;
+            background: #f8f9fa;
+            border: 1px solid #99a3b2;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+            border-radius: 5px;
+            z-index: 9999;
+            padding: 8px;
+            display: none;
+        }
+
+        /* Colorful Words 3x3 Grid */
+        .colorful-popup {
+            width: 280px;
+            top: 60px;
+            left: 20px;
+        }
+
+        .colorful-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 4px;
+        }
+
+        .colorful-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .colorful-item {
+            height: 38px;
+            border: 1.5px solid #ccd1d9;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.1s;
+        }
+
+        .colorful-item:hover {
+            border-color: #0078d7;
+            transform: scale(1.03);
+        }
+
+        .colorful-item.active {
+            border: 2px solid #28a745;
+            box-shadow: 0 0 6px rgba(40,167,69,0.6);
+        }
+
+        .colorful-item.active::after {
+            content: "✔";
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 11px;
+            color: #00e676;
+            font-weight: 900;
+            text-shadow: 0 0 3px #000;
+        }
+
+        .cw-sample-text {
+            font-weight: 900;
+            font-size: 18px;
+            letter-spacing: -1px;
+        }
+
+        /* Text Effects Popup */
+        .text-effect-popup {
+            width: 250px;
+            top: 60px;
+            left: 60px;
+        }
+
+        .te-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .te-row label {
+            cursor: pointer;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- 1. Window Titlebar -->
+    <div class="window-titlebar">
+        <div class="brand">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#0078d7">
+                <rect x="2" y="4" width="20" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                <circle cx="7" cy="9" r="1.5" fill="currentColor"/>
+                <circle cx="12" cy="9" r="1.5" fill="currentColor"/>
+                <circle cx="17" cy="9" r="1.5" fill="currentColor"/>
+                <circle cx="7" cy="14" r="1.5" fill="currentColor"/>
+                <circle cx="12" cy="14" r="1.5" fill="currentColor"/>
+                <circle cx="17" cy="14" r="1.5" fill="currentColor"/>
+            </svg>
+            <span>HD2020 Studio V18 - [Fix Dứt Điểm Viền Chạy: Viền Chạy Quanh 4 Cạnh Độc Lập, Hiệu Ứng Chữ Mượt Chuẩn HD2020]</span>
+        </div>
+        <div style="font-size: 11px; color: #444;">
+            Máy chủ: <strong id="serverVersionLabel" style="color: #28a745;">ĐANG KẾT NỐI (V18 PRO)</strong>
+        </div>
+    </div>
+
+    <!-- 2. Menu Bar -->
+    <div class="menubar">
+        <div class="menu-item" onclick="promptAddBoard()">File(F): Thêm Bảng Mới</div>
+        <div class="menu-item" onclick="scanWifiCards()">Settings(S): Quét Card LED</div>
+        <div class="menu-item" onclick="napCauHinhPhanCung()">Hardware(H): Fix Lỗi Card Mới (HUB75)</div>
+        <div class="menu-item">Language(L): Tiếng Việt</div>
+        <div class="menu-item" onclick="openHelp()">Help(H)</div>
+    </div>
+
+    <!-- 3. Ribbon Toolbar -->
+    <div class="toolbar">
+        <div class="tb-group">
+            <button class="tb-btn" onclick="scanWifiCards()" title="Dò tìm các card WF2 mới phát sóng">
+                <svg viewBox="0 0 24 24" fill="#0078d7"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                <span>Quét Card</span>
+            </button>
+            <button class="tb-btn" onclick="promptAddBoard()" title="Thêm một bảng LED mới">
+                <svg viewBox="0 0 24 24" fill="#28a745"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                <span>Thêm Bảng</span>
+            </button>
+            <button class="tb-btn" onclick="togglePauseSimulation()">
+                <svg viewBox="0 0 24 24" fill="#6f42c1"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+                <span id="btnPauseSimText">Dừng chạy</span>
+            </button>
+        </div>
+
+        <!-- Big Send Button -->
+        <div class="tb-group" style="border: none;">
+            <button class="tb-btn primary-sync" onclick="startSendSync()">
+                <svg viewBox="0 0 24 24" fill="#28a745"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                <span>GỬI ĐỒNG BỘ (SEND)</span>
+            </button>
+        </div>
+
+        <!-- Fix Card Mới Button -->
+        <div class="tb-group" style="border: none; margin-left: 10px;">
+            <button class="tb-btn" style="background:#fff3cd; border:1px solid #ffeeba; color:#856404; min-width:80px;" onclick="napCauHinhPhanCung()" title="Khắc phục dứt điểm lỗi nát chữ, vỡ nét cho Card mới bằng file phuc.xhds">
+                <svg viewBox="0 0 24 24" fill="#d39e00"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                <span style="font-weight:700;">🔧 Fix Card Mới (HUB75)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 4. Board Selector Navigation Bar (DYNAMIC TABS) -->
+    <div class="board-selector-bar">
+        <div class="board-tabs-wrap" id="boardTabsWrap">
+            <!-- Dynamically populated tabs -->
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn-action-small" onclick="scanWifiCards()" title="Dò tìm các card LED WF2 xung quanh">
+                🔍 Quét Card LED
+            </button>
+            <button class="btn-action-small btn-add-board" onclick="promptAddBoard()" title="Thêm card LED mới">
+                ➕ Thêm Bảng
+            </button>
+            <div class="wifi-detected-box">
+                <span>📶 Wi-Fi máy đang bắt:</span>
+                <strong id="wifiDetectedLabel">Đang nhận diện...</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Main Workspace -->
+    <div class="main-container">
+        <!-- Left Column: Dynamic Tree structure -->
+        <div class="left-tree-panel">
+            <div class="tree-header">
+                <span>Danh Sách Bảng LED</span>
+                <span id="boardCountBadge" style="font-size:10px; background:#0078d7; color:#fff; padding:1px 6px; border-radius:10px;">3</span>
+            </div>
+            <div class="tree-body" id="treeBodyList">
+                <!-- Dynamically populated tree items -->
+            </div>
+        </div>
+
+        <!-- Center Column: Visual Matrix Display -->
+        <div class="center-workspace">
+            <div class="screen-info-bar">
+                <span id="canvasHeaderLabel">MÔ PHỎNG: BẢNG 1 (64 &times; 32)</span>
+                <span id="zoomLabel">Zoom: 400%</span>
+            </div>
+            <div class="canvas-viewport">
+                <div class="canvas-frame">
+                    <canvas id="ledCanvas" width="512" height="256"></canvas>
+                </div>
+
+                <div class="canvas-controls">
+                    <span style="cursor:pointer;" onclick="changeZoom(-1)">➖</span>
+                    <span id="zoomPercent">400%</span>
+                    <span style="cursor:pointer;" onclick="changeZoom(1)">➕</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Info & On-line Logs -->
+        <div class="right-panel">
+            <div class="tabs-header">
+                <div class="tab-btn active" id="tabInfoBtn" onclick="switchTab('info')">Info</div>
+                <div class="tab-btn" id="tabOnlineBtn" onclick="switchTab('online')">On-line</div>
+            </div>
+
+            <div class="tab-content" id="tabInfoContent">
+                <div style="font-weight: 700; color: #555;">Nhật ký truyền dữ liệu:</div>
+                <div class="log-box" id="logBox">Hệ thống HD2020 V10 Pro sẵn sàng. Tích hợp đầy đủ Chữ 7 màu [AB], Viền chạy và 45 hiệu ứng!</div>
+                <button style="padding: 4px 8px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer;" onclick="clearLog()">Xóa nhật ký</button>
+            </div>
+
+            <div class="tab-content" id="tabOnlineContent" style="display: none;">
+                <div style="font-weight: 700; color: #555;">Cấu hình các card Wi-Fi:</div>
+                <div id="onlineCardList" style="display:flex; flex-direction:column; gap:6px;">
+                    <!-- Dynamically populated cards -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Bottom Inspector Panel: EXACT HD2020 PRO SUITE -->
+    <div class="bottom-panel">
+        <!-- Area Attribute -->
+        <div class="bot-col-attr">
+            <div class="title">Area attribute</div>
+            <div class="form-row">
+                <label>Area pos X:</label>
+                <input type="number" value="0" readonly>
+            </div>
+            <div class="form-row">
+                <label>Area pos Y:</label>
+                <input type="number" value="0" readonly>
+            </div>
+            <div class="form-row">
+                <label>Width:</label>
+                <input type="number" value="64" readonly>
+            </div>
+            <div class="form-row">
+                <label>Height:</label>
+                <input type="number" value="32" readonly>
+            </div>
+            <div style="margin-top: 4px; font-size: 10px; color: #888;">
+                🔒 Toàn màn hình 64&times;32
+            </div>
+        </div>
+
+        <!-- Rich Text Editor with [AB] Colorful Words, [A] Effects & Full Toolbar -->
+        <div class="bot-col-editor">
+            <div class="editor-header-tag">
+                <span id="editorActiveBoardTitle">ĐANG CHỈNH NỘI DUNG CHO: BẢNG 1</span>
+                <span style="font-weight:normal; font-size:11px; color:#666;">(Chuyển sang bảng khác bằng tab ở trên)</span>
+            </div>
+
+            <div class="editor-toolbar">
+                <!-- HD2020 Action Buttons -->
+                <button class="btn-hd-tool btn-colorful-words" id="btnColorfulWords" onclick="toggleColorfulWordsPopup()" title="Nút [AB]: Chọn kiểu chữ 7 màu / Cầu vồng Gradient">
+                    [AB]
+                </button>
+                <button class="btn-hd-tool btn-text-style" id="btnTextStyle" onclick="toggleTextStylePopup()" title="Nút [A]: Hiệu ứng nét chữ, chữ rỗng (Hollow), viền chữ (Stroke), đảo màu">
+                    [A]
+                </button>
+
+                <span style="color:#ccc;">|</span>
+
+                <!-- Font & Size -->
+                <select id="fontFamily" onchange="onEditorChange()" title="Kiểu chữ">
+                    <option value="Arial" selected>Arial (Nét đều, đẹp nhất)</option>
+                    <option value="Tahoma">Tahoma</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                </select>
+
+                <select id="fontSizeSelect" onchange="onEditorChange()" title="Cỡ chữ">
+                    <option value="10">10 (Rất nhỏ)</option>
+                    <option value="12">12 (Nhỏ)</option>
+                    <option value="14">14 (Vừa nhỏ)</option>
+                    <option value="16" selected>16 (Chuẩn vừa khung)</option>
+                    <option value="18">18</option>
+                    <option value="20">20 (Lớn)</option>
+                    <option value="24">24 (Rất lớn)</option>
+                </select>
+
+                <!-- B, I, U Buttons -->
+                <button class="btn-hd-tool active" id="btnBold" onclick="toggleBold()" title="In đậm (Bold)"><b>B</b></button>
+                <button class="btn-hd-tool" id="btnItalic" onclick="toggleItalic()" title="In nghiêng (Italic)"><i>I</i></button>
+                <button class="btn-hd-tool" id="btnUnderline" onclick="toggleUnderline()" title="Gạch chân (Underline)"><u>U</u></button>
+
+                <span style="color:#ccc;">|</span>
+
+                <!-- Horizontal Alignment -->
+                <div class="align-group" title="Căn lề ngang">
+                    <button class="align-btn" id="btnAlignLeft" onclick="setAlignH('left')" title="Căn trái">⬅</button>
+                    <button class="align-btn active" id="btnAlignCenter" onclick="setAlignH('center')" title="Căn chính giữa">⏺</button>
+                    <button class="align-btn" id="btnAlignRight" onclick="setAlignH('right')" title="Căn phải">➡</button>
+                </div>
+
+                <!-- Vertical Alignment -->
+                <div class="align-group" title="Căn lề dọc">
+                    <button class="align-btn" id="btnAlignTop" onclick="setAlignV('top')" title="Căn trên">⬆</button>
+                    <button class="align-btn active" id="btnAlignMiddle" onclick="setAlignV('middle')" title="Căn giữa dọc">⏸</button>
+                    <button class="align-btn" id="btnAlignBottom" onclick="setAlignV('bottom')" title="Căn dưới">⬇</button>
+                </div>
+
+                <span style="color:#ccc;">|</span>
+
+                <!-- Color Palette -->
+                <div class="color-chips-row" title="Màu chữ hiển thị">
+                    <div class="color-dot-btn active" data-color="green" style="background:#00e676;" onclick="setColor('green')" title="Xanh lá"></div>
+                    <div class="color-dot-btn" data-color="red" style="background:#ff3333;" onclick="setColor('red')" title="Đỏ"></div>
+                    <div class="color-dot-btn" data-color="yellow" style="background:#ffeb3b;" onclick="setColor('yellow')" title="Vàng"></div>
+                    <div class="color-dot-btn" data-color="blue" style="background:#2979ff;" onclick="setColor('blue')" title="Xanh dương"></div>
+                    <div class="color-dot-btn" data-color="cyan" style="background:#00e5ff;" onclick="setColor('cyan')" title="Xanh ngọc"></div>
+                    <div class="color-dot-btn" data-color="magenta" style="background:#f50057;" onclick="setColor('magenta')" title="Hồng tím"></div>
+                    <div class="color-dot-btn" data-color="white" style="background:#ffffff;" onclick="setColor('white')" title="Trắng"></div>
+                </div>
+            </div>
+
+            <!-- Active Board Text Area -->
+            <textarea id="ledText" class="editor-textarea" placeholder="Nhập nội dung chữ..." oninput="onTextInput()"></textarea>
+
+            <!-- POPUP 1: [AB] COLORFUL WORDS (9 PRESETS) -->
+            <div class="popup-menu colorful-popup" id="colorfulWordsPopup">
+                <div class="colorful-header">
+                    <span style="font-weight:700; color:#333;">Colorful Words (Chữ 7 màu)</span>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="font-size:11px; color:#666;">Speed:</span>
+                        <select id="cwSpeedSelect" style="width:45px;" onchange="onEditorChange()">
+                            <option value="3">3</option>
+                            <option value="5" selected>5</option>
+                            <option value="8">8</option>
+                        </select>
+                        <span style="cursor:pointer; font-weight:bold; margin-left:6px;" onclick="closePopups()">&times;</span>
+                    </div>
+                </div>
+                <div class="colorful-grid">
+                    <!-- Item 0: Disabled (No Color) -->
+                    <div class="colorful-item active" id="cwItem0" onclick="selectColorfulWord(0)" title="Không dùng (Màu đơn sắc thông thường)">
+                        <span style="color:#ff3333; font-size:18px;">🚫</span>
+                    </div>
+                    <!-- Item 1: Rainbow Horizontal -->
+                    <div class="colorful-item" id="cwItem1" onclick="selectColorfulWord(1)" title="Mẫu 1: Cầu vồng ngang HD2020 (300 (1).gif)">
+                        <span class="cw-sample-text" style="background:linear-gradient(90deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">AB</span>
+                    </div>
+                    <!-- Item 2: Rainbow Vertical -->
+                    <div class="colorful-item" id="cwItem2" onclick="selectColorfulWord(2)" title="Mẫu 2: Cầu vồng dọc (300 (2).gif)">
+                        <span class="cw-sample-text" style="background:linear-gradient(180deg,#ff0055,#ffcc00,#00ffcc,#0066ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">AB</span>
+                    </div>
+                    <!-- Item 3: Neon Waves -->
+                    <div class="colorful-item" id="cwItem3" onclick="selectColorfulWord(3)" title="Mẫu 3: Sóng Neon (300 (3).gif)">
+                        <span class="cw-sample-text" style="background:linear-gradient(45deg,#ff00aa,#00ffea,#ffe600);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">AB</span>
+                    </div>
+                    <!-- Item 4: Gradient 01.gif -->
+                    <div class="colorful-item" id="cwItem4" onclick="selectColorfulWord(4)" title="Mẫu 4: Hoàng hôn tím vàng (01.gif)">
+                        <span class="cw-sample-text" style="background:linear-gradient(90deg,#ff0080,#ff8c00,#40e0d0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">AB</span>
+                    </div>
+                    <!-- Item 5: Gradient 02.gif -->
+                    <div class="colorful-item" id="cwItem5" onclick="selectColorfulWord(5)" title="Mẫu 5: Biển xanh lục bảo (02.gif)">
+                        <span class="cw-sample-text" style="background:linear-gradient(90deg,#00f2fe,#4facfe,#00c6ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">AB</span>
+                    </div>
+                    <!-- Item 6: Gradient 03.gif -->
+                    <div class="colorful-item" id="cwItem6" onclick="selectColorfulWord(6)" title="Mẫu 6: Lửa đỏ cam (03.gif)">
+                        <span class="cw-sample-text" style="background:linear-gradient(90deg,#f83600,#fe8c00,#ff0844);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">AB</span>
+                    </div>
+                    <!-- Item 7: Gradient 04.gif -->
+                    <div class="colorful-item" id="cwItem7" onclick="selectColorfulWord(7)" title="Mẫu 7: Pastel ngọt ngào (04.gif)">
+                        <span class="cw-sample-text" style="background:linear-gradient(90deg,#b3ffab,#12fff7,#e17055);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">AB</span>
+                    </div>
+                    <!-- Item 8: Gradient 05.gif -->
+                    <div class="colorful-item" id="cwItem8" onclick="selectColorfulWord(8)" title="Mẫu 8: Cyberpunk đa sắc (05.gif)">
+                        <span class="cw-sample-text" style="background:linear-gradient(90deg,#f953c6,#b91d73,#e65c00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">AB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- POPUP 2: [A] TEXT STYLE (HOLLOW, STROKE, INVERT) -->
+            <div class="popup-menu text-effect-popup" id="textStylePopup">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e1e4e8; padding-bottom:4px; margin-bottom:8px;">
+                    <strong style="color:#333;">Hiệu Ứng Nét Chữ [A]</strong>
+                    <span style="cursor:pointer; font-weight:bold;" onclick="closePopups()">&times;</span>
+                </div>
+                <div class="te-row">
+                    <input type="checkbox" id="chkHollow" onchange="onEditorChange()">
+                    <label for="chkHollow">Chữ rỗng (Hollow)</label>
+                </div>
+                <div class="te-row">
+                    <input type="checkbox" id="chkStroke" onchange="onEditorChange()">
+                    <label for="chkStroke">Viền nét chữ (Stroke)</label>
+                </div>
+                <div style="padding-left:20px; display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <span style="font-size:11px; color:#555;">Độ dày:</span>
+                    <select id="strokeWidthSelect" style="width:50px;" onchange="onEditorChange()">
+                        <option value="1" selected>1 px</option>
+                        <option value="2">2 px</option>
+                        <option value="3">3 px</option>
+                    </select>
+                    <select id="strokeColorSelect" style="width:65px;" onchange="onEditorChange()">
+                        <option value="red" selected>Đỏ</option>
+                        <option value="yellow">Vàng</option>
+                        <option value="white">Trắng</option>
+                        <option value="blue">Xanh</option>
+                    </select>
+                </div>
+                <div class="te-row">
+                    <input type="checkbox" id="chkInvert" onchange="onEditorChange()">
+                    <label for="chkInvert">Đảo màu (Color inversion)</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Effect Settings Column (Exact HD2020) -->
+        <div class="bot-col-effect">
+            <div class="panel-header-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#0078d7"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                <span>Effect (Hiệu ứng)</span>
+            </div>
+            <div class="form-row" style="flex-direction:column; align-items:stretch;">
+                <label style="margin-bottom:2px;">Hiệu ứng chuyển động:</label>
+                <select id="effectSelect" onchange="onEditorChange()">
+                    <option value="0">Show immediately (Hiển thị ngay - Đứng yên)</option>
+                    <option value="1" selected>Move Left (Chạy sang trái - Chuẩn HD2020)</option>
+                    <option value="2">Move Right (Chạy sang phải - Chuẩn HD2020)</option>
+                    <option value="3">Move Up (Chạy lên trên - Chuẩn HD2020)</option>
+                    <option value="4">Move Down (Chạy xuống dưới - Chuẩn HD2020)</option>
+                    <option value="37">Pull upward (Kéo cuộn lên trên - HD2020)</option>
+                    <option value="36">Pull downward (Kéo cuộn xuống dưới - HD2020)</option>
+                    <option value="38">Pull vertically (Kéo giãn dọc 2 chiều - HD2020)</option>
+                    <option value="39">Pull horizontally (Kéo giãn ngang 2 chiều - HD2020)</option>
+                    <option value="202">Continuously Move Left (Chạy liên tục sang trái)</option>
+                    <option value="203">Continuously Move Right (Chạy liên tục sang phải)</option>
+                    <option value="11">Open from middle (Mở rèm ngang từ giữa)</option>
+                    <option value="12">Close from both sides (Đóng rèm ngang 2 bên)</option>
+                    <option value="13">Horizontal shutters (Màn sáo ngang)</option>
+                    <option value="14">Vertical shutters (Màn sáo dọc)</option>
+                    <option value="25">Laser (Tia chớp Laser)</option>
+                    <option value="28">Snow (Tuyết rơi)</option>
+                    <option value="34">Twinkle (Nhấp nháy / Lấp lánh)</option>
+                    <option value="200">Random (Ngẫu nhiên)</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label>Speed (Tốc độ):</label>
+                <select id="speedSelect" style="width:75px;" onchange="onEditorChange()">
+                    <option value="4">4 (Rất nhanh)</option>
+                    <option value="6">6 (Nhanh)</option>
+                    <option value="10" selected>10 (Chuẩn HD2020)</option>
+                    <option value="15">15 (Vừa chậm)</option>
+                    <option value="20">20 (Chậm)</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label>Stop over (Dừng):</label>
+                <select id="stayTimeSelect" style="width:75px;" onchange="onEditorChange()">
+                    <option value="0">0 Sec</option>
+                    <option value="1">1 Sec</option>
+                    <option value="2">2 Sec</option>
+                    <option value="3" selected>3 Sec</option>
+                    <option value="5">5 Sec</option>
+                    <option value="10">10 Sec</option>
+                </select>
+            </div>
+
+            <div style="margin-top:2px;">
+                <input type="checkbox" id="chkDoNotClear" checked>
+                <label for="chkDoNotClear" style="font-size:11px; color:#555;">Do not clear</label>
+            </div>
+        </div>
+
+        <!-- Run border Column (Exact HD2020) -->
+        <div class="bot-col-border">
+            <div class="panel-header-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#ff9800"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z"/></svg>
+                <span>Run border (Viền chạy)</span>
+            </div>
+            <div class="form-row" style="flex-direction:column; align-items:stretch;">
+                <label style="margin-bottom:2px;">Border Style (Kiểu viền):</label>
+                <select id="borderStyleSelect" onchange="onEditorChange()">
+                    <option value="0" selected>🚫 Không viền</option>
+                    <option value="1">Mẫu 001 (Chấm bi chạy)</option>
+                    <option value="2">Mẫu 002 (Sao lấp lánh)</option>
+                    <option value="3">Mẫu 003 (Sóng uốn lượn)</option>
+                    <option value="4">Mẫu 004 (Viền đa sắc)</option>
+                    <option value="5">Mẫu 005 (Kim cương chạy)</option>
+                    <option value="6">Mẫu 006 (Đường gạch neon)</option>
+                    <option value="7">Mẫu 007 (Vệt sao băng)</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label>Mode (Hướng chạy):</label>
+                <select id="borderModeSelect" style="width:85px;" onchange="onEditorChange()">
+                    <option value="Clockwise" selected>Clockwise</option>
+                    <option value="Anti-clockwise">Anti-clockwise</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label>Border Speed:</label>
+                <select id="borderSpeedSelect" style="width:85px;" onchange="onEditorChange()">
+                    <option value="2">Nhanh (2)</option>
+                    <option value="5" selected>Chuẩn (5)</option>
+                    <option value="8">Chậm (8)</option>
+                </select>
+            </div>
+
+            <div style="margin-top:2px;">
+                <input type="checkbox" id="chkSpecialBorder">
+                <label for="chkSpecialBorder" style="font-size:11px; color:#555;">Special Border</label>
+            </div>
+        </div>
+
+        <!-- Background Column (Exact HD2020) -->
+        <div class="bot-col-bg">
+            <div class="panel-header-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#9c27b0"><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4.86 8.86l-3 3.87L9 13.14 6 17h12l-3.86-5.14z"/></svg>
+                <span>Background</span>
+            </div>
+            <div class="form-row" style="flex-direction:column; align-items:stretch;">
+                <label style="margin-bottom:2px;">Nền động:</label>
+                <select id="bgSelect" onchange="onEditorChange()">
+                    <option value="0" selected>🚫 Không nền</option>
+                    <option value="1">Sao băng lấp lánh</option>
+                    <option value="2">Lửa bùng cháy</option>
+                    <option value="3">Trái tim bay</option>
+                </select>
+            </div>
+            <div style="margin-top:8px; font-size:11px; color:#777; line-height:1.3;">
+                💡 Chữ 7 màu [AB] và Viền chạy hoạt động độc lập hoàn hảo.
+            </div>
+        </div>
+
+        <!-- Big Send Button and Dynamic Wi-Fi Options -->
+        <div class="bot-col-sync">
+            <div>
+                <div style="font-weight: 800; color: #005a9e; margin-bottom: 4px; font-size: 11px;">🎯 CHẾ ĐỘ TRUYỀN:</div>
+                <select id="targetSelect" style="width: 100%; padding: 4px; border: 1.5px solid #0078d7; border-radius: 4px; font-weight: 700; color: #005a9e; background: #fff;">
+                    <option value="sync_all" selected>⚡ ĐỒNG BỘ TẤT CẢ CÁC BẢNG</option>
+                </select>
+
+                <div style="margin-top: 6px; font-size: 11px; color: #444; line-height: 1.4;">
+                    <div>
+                        <input type="checkbox" id="autoSwitchWifi" checked>
+                        <label for="autoSwitchWifi" style="font-weight: 600; color: #005a9e;">
+                            Tự động chuyển Wi-Fi giữa các card khi đồng bộ (Bỏ chọn nếu bắt sẵn 1 Wi-Fi)
+                        </label>
+                    </div>
+                    <div style="margin-top: 3px;">
+                        <input type="checkbox" id="reconnectBack" checked>
+                        <label for="reconnectBack" id="reconnectLabel">
+                            Tự động quay về mạng Wi-Fi ban đầu của máy sau khi gửi xong
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btnSendBottom" class="btn-big-send" onclick="startSendSync()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+                <span id="btnSendText">GỬI ĐỒNG BỘ CÁC BẢNG</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // DYNAMIC MULTI-BOARD INITIAL CONFIGURATION (V14)
+        const DEFAULT_BOARDS = [
+            {
+                id: 1,
+                name: "BẢNG 1",
+                ssid: "WF2_f412fab2b75c",
+                text: "PHÚC",
+                color: "green",
+                fontSize: 16,
+                alignH: "center",
+                alignV: "middle",
+                effect: 1, // Move Left (Chạy sang trái chuẩn HD2020)
+                speed: 10,
+                stayTime: 3,
+                bold: true,
+                italic: false,
+                underline: false,
+                colorfulWords: 1, // Preset 1 (7 màu HD2020)
+                hollow: false,
+                stroke: false,
+                strokeWidth: 1,
+                strokeColor: "red",
+                invert: false,
+                borderStyle: 1, // Mẫu 001
+                borderSpeed: 5,
+                borderMode: "Clockwise"
+            },
+            {
+                id: 2,
+                name: "BẢNG 2",
+                ssid: "WF2_1051db45b870",
+                text: "NGUYỄN",
+                color: "magenta",
+                fontSize: 16,
+                alignH: "center",
+                alignV: "middle",
+                effect: 37, // Pull upward (Kéo cuộn lên trên chuẩn HD2020)
+                speed: 10,
+                stayTime: 3,
+                bold: true,
+                italic: false,
+                underline: false,
+                colorfulWords: 1,
+                hollow: false,
+                stroke: false,
+                strokeWidth: 1,
+                strokeColor: "red",
+                invert: false,
+                borderStyle: 1,
+                borderSpeed: 5,
+                borderMode: "Clockwise"
+            },
+            {
+                id: 3,
+                name: "BẢNG 3",
+                ssid: "WF2_f412fab177c8",
+                text: "HOÀNG",
+                color: "yellow",
+                fontSize: 16,
+                alignH: "center",
+                alignV: "middle",
+                effect: 38, // Pull vertically (Kéo giãn dọc 2 chiều chuẩn HD2020)
+                speed: 10,
+                stayTime: 3,
+                bold: true,
+                italic: false,
+                underline: false,
+                colorfulWords: 1,
+                hollow: false,
+                stroke: false,
+                strokeWidth: 1,
+                strokeColor: "red",
+                invert: false,
+                borderStyle: 1,
+                borderSpeed: 5,
+                borderMode: "Clockwise"
+            }
+        ];
+
+        // Load saved boards from localStorage if exists
+        let boards = [];
+        try {
+            const saved = localStorage.getItem('hd2020_dynamic_boards_v14') || localStorage.getItem('hd2020_dynamic_boards_v11');
+            if (saved) {
+                boards = JSON.parse(saved);
+                // Tự động sửa các bảng cũ bị lưu stayTime = 0 sang stayTime = 3 (Chuẩn HD2020) để không bị ngắt hiệu ứng
+                boards.forEach(b => {
+                    if (!b.stayTime || b.stayTime <= 0) b.stayTime = 3;
+                    if (b.effect === 202) b.effect = 1;
+                    if (b.effect === 203) b.effect = 2;
+                });
+            }
+        } catch (e) {}
+
+        if (!boards || boards.length === 0) {
+            boards = JSON.parse(JSON.stringify(DEFAULT_BOARDS));
+        }
+
+        let currentActiveBoardId = boards[0].id;
+        let isSimRunning = true;
+        let currentZoom = 400;
+        let detectedPcWifi = "";
+        let animOffset = 0;
+        let borderTick = 0;
+        let animTimer = null;
+
+        const colorMap = {
+            'green': '#00e676',
+            'red': '#ff3333',
+            'yellow': '#ffeb3b',
+            'blue': '#2979ff',
+            'cyan': '#00e5ff',
+            'magenta': '#f50057',
+            'white': '#ffffff'
+        };
+
+        const canvas = document.getElementById('ledCanvas');
+        const ctx = canvas.getContext('2d');
+        const COLS = 64;
+        const ROWS = 32;
+        const DOT_SIZE = 8;
+
+        function saveBoardsToStorage() {
+            try {
+                localStorage.setItem('hd2020_dynamic_boards_v14', JSON.stringify(boards));
+            } catch (e) {}
+        }
+
+        function getActiveBoard() {
+            return boards.find(b => b.id === currentActiveBoardId) || boards[0];
+        }
+
+        function log(msg) {
+            const box = document.getElementById('logBox');
+            const time = new Date().toLocaleTimeString();
+            box.textContent += (box.textContent ? '\n' : '') + `[${time}] ` + msg;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logBox').textContent = '';
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tabInfoBtn').classList.toggle('active', tab === 'info');
+            document.getElementById('tabOnlineBtn').classList.toggle('active', tab === 'online');
+            document.getElementById('tabInfoContent').style.display = tab === 'info' ? 'flex' : 'none';
+            document.getElementById('tabOnlineContent').style.display = tab === 'online' ? 'flex' : 'none';
+        }
+
+        // RENDER TABS AND SIDEBAR TREE VIEW DYNAMICALLY
+        function renderTabsAndTrees() {
+            const tabsWrap = document.getElementById('boardTabsWrap');
+            tabsWrap.innerHTML = '';
+
+            const treeBody = document.getElementById('treeBodyList');
+            treeBody.innerHTML = '';
+
+            const onlineList = document.getElementById('onlineCardList');
+            onlineList.innerHTML = '';
+
+            const targetSelect = document.getElementById('targetSelect');
+            const curTarget = targetSelect.value;
+            targetSelect.innerHTML = `<option value="sync_all" ${curTarget === 'sync_all' ? 'selected' : ''}>⚡ ĐỒNG BỘ TẤT CẢ ${boards.length} BẢNG</option>`;
+
+            boards.forEach((b, idx) => {
+                const isActive = (b.id === currentActiveBoardId);
+
+                // 1. Top Tab
+                const tab = document.createElement('div');
+                tab.className = `board-tab ${isActive ? 'active' : ''}`;
+                tab.onclick = () => switchBoard(b.id);
+                tab.innerHTML = `
+                    <span>📌 ${b.name} (${b.ssid.substring(0, 12)}...)</span>
+                    <span class="board-tab-badge">"${(b.text || '').substring(0, 10)}"</span>
+                    ${boards.length > 1 ? `<span class="board-tab-del" title="Xóa bảng này" onclick="event.stopPropagation(); removeBoard(${b.id})">&times;</span>` : ''}
+                `;
+                tabsWrap.appendChild(tab);
+
+                // 2. Left Tree Card
+                const card = document.createElement('div');
+                card.className = `tree-card ${isActive ? 'active' : ''}`;
+                card.onclick = () => switchBoard(b.id);
+                card.innerHTML = `
+                    <div class="tree-card-title">
+                        <span>${b.name}</span>
+                        <span style="color:#28a745; font-size:10px;">64&times;32</span>
+                    </div>
+                    <div style="font-size:10px; color:#666;">${b.ssid}</div>
+                    <div class="tree-card-text">Chữ: "${(b.text || '').substring(0, 15)}"</div>
+                `;
+                treeBody.appendChild(card);
+
+                // 3. Online tab item
+                const oCard = document.createElement('div');
+                oCard.style = "background:#f8f9fa; border:1px solid #d0d7de; border-radius:6px; padding:8px;";
+                oCard.innerHTML = `
+                    <strong>${b.name}:</strong> ${b.ssid}<br>
+                    <span style="color:#666;">IP: 192.168.4.1 | Port: 6101 | Căn: ${b.alignH}/${b.alignV} | Hiệu ứng: ${b.effect}</span>
+                `;
+                onlineList.appendChild(oCard);
+
+                // 4. Target Option
+                const opt = document.createElement('option');
+                opt.value = `board_${b.id}`;
+                if (curTarget === `board_${b.id}`) opt.selected = true;
+                opt.textContent = `👉 Chỉ gửi ${b.name} (${b.ssid})`;
+                targetSelect.appendChild(opt);
+            });
+
+            document.getElementById('boardCountBadge').textContent = boards.length;
+        }
+
+        // SWITCH ACTIVE BOARD TO EDIT
+        function switchBoard(boardId) {
+            closePopups();
+            saveCurrentBoardInputs();
+            currentActiveBoardId = boardId;
+
+            renderTabsAndTrees();
+            loadBoardInputs(boardId);
+
+            const b = getActiveBoard();
+            document.getElementById('canvasHeaderLabel').textContent = 
+                `MÔ PHỎNG: ${b.name} (${b.ssid} - 64 × 32)`;
+            document.getElementById('editorActiveBoardTitle').textContent = 
+                `ĐANG CHỈNH NỘI DUNG CHO: ${b.name} (${b.ssid})`;
+
+            updatePreview();
+        }
+
+        function saveCurrentBoardInputs() {
+            const b = getActiveBoard();
+            if (!b) return;
+
+            b.text = document.getElementById('ledText').value;
+            b.fontSize = parseInt(document.getElementById('fontSizeSelect').value) || 16;
+            b.effect = parseInt(document.getElementById('effectSelect').value) || 0;
+            b.speed = parseInt(document.getElementById('speedSelect').value) || 10;
+            b.stayTime = parseInt(document.getElementById('stayTimeSelect').value) || 3;
+            b.borderStyle = parseInt(document.getElementById('borderStyleSelect').value) || 0;
+            b.borderMode = document.getElementById('borderModeSelect').value || 'Clockwise';
+            b.borderSpeed = parseInt(document.getElementById('borderSpeedSelect').value) || 5;
+
+            b.hollow = document.getElementById('chkHollow').checked;
+            b.stroke = document.getElementById('chkStroke').checked;
+            b.strokeWidth = parseInt(document.getElementById('strokeWidthSelect').value) || 1;
+            b.strokeColor = document.getElementById('strokeColorSelect').value || 'red';
+            b.invert = document.getElementById('chkInvert').checked;
+
+            const activeColorBtn = document.querySelector('.color-dot-btn.active');
+            if (activeColorBtn) b.color = activeColorBtn.getAttribute('data-color');
+
+            saveBoardsToStorage();
+        }
+
+        function loadBoardInputs(boardId) {
+            const b = boards.find(x => x.id === boardId) || boards[0];
+            document.getElementById('ledText').value = b.text || '';
+            document.getElementById('fontSizeSelect').value = b.fontSize || 16;
+            document.getElementById('effectSelect').value = b.effect !== undefined ? b.effect : 37;
+            document.getElementById('speedSelect').value = b.speed || 10;
+            document.getElementById('stayTimeSelect').value = b.stayTime !== undefined ? b.stayTime : 3;
+            document.getElementById('borderStyleSelect').value = b.borderStyle || 0;
+            document.getElementById('borderModeSelect').value = b.borderMode || 'Clockwise';
+            document.getElementById('borderSpeedSelect').value = b.borderSpeed || 5;
+
+            document.getElementById('chkHollow').checked = !!b.hollow;
+            document.getElementById('chkStroke').checked = !!b.stroke;
+            document.getElementById('strokeWidthSelect').value = b.strokeWidth || 1;
+            document.getElementById('strokeColorSelect').value = b.strokeColor || 'red';
+            document.getElementById('chkInvert').checked = !!b.invert;
+
+            document.getElementById('btnBold').classList.toggle('active', b.bold !== false);
+            document.getElementById('btnItalic').classList.toggle('active', !!b.italic);
+            document.getElementById('btnUnderline').classList.toggle('active', !!b.underline);
+
+            // Update Colorful Words grid active
+            updateColorfulWordsUI(b.colorfulWords || 0);
+
+            updateColorUI(b.color || 'green');
+            updateAlignUI(b.alignH || 'center', b.alignV || 'middle');
+        }
+
+        // COLORFUL WORDS POPUP & LOGIC
+        function toggleColorfulWordsPopup() {
+            const pop = document.getElementById('colorfulWordsPopup');
+            const isOpen = (pop.style.display === 'block');
+            closePopups();
+            if (!isOpen) pop.style.display = 'block';
+        }
+
+        function selectColorfulWord(presetIndex) {
+            const b = getActiveBoard();
+            b.colorfulWords = presetIndex;
+            updateColorfulWordsUI(presetIndex);
+            saveBoardsToStorage();
+            updatePreview();
+            closePopups();
+        }
+
+        function updateColorfulWordsUI(presetIndex) {
+            for (let i = 0; i <= 8; i++) {
+                const el = document.getElementById(`cwItem${i}`);
+                if (el) el.classList.toggle('active', i === presetIndex);
+            }
+            const btn = document.getElementById('btnColorfulWords');
+            btn.classList.toggle('active', presetIndex > 0);
+        }
+
+        // TEXT STYLE POPUP & LOGIC
+        function toggleTextStylePopup() {
+            const pop = document.getElementById('textStylePopup');
+            const isOpen = (pop.style.display === 'block');
+            closePopups();
+            if (!isOpen) pop.style.display = 'block';
+        }
+
+        function closePopups() {
+            document.getElementById('colorfulWordsPopup').style.display = 'none';
+            document.getElementById('textStylePopup').style.display = 'none';
+        }
+
+        // Style buttons
+        function toggleBold() {
+            const b = getActiveBoard();
+            b.bold = !b.bold;
+            document.getElementById('btnBold').classList.toggle('active', b.bold);
+            saveBoardsToStorage();
+            updatePreview();
+        }
+
+        function toggleItalic() {
+            const b = getActiveBoard();
+            b.italic = !b.italic;
+            document.getElementById('btnItalic').classList.toggle('active', b.italic);
+            saveBoardsToStorage();
+            updatePreview();
+        }
+
+        function toggleUnderline() {
+            const b = getActiveBoard();
+            b.underline = !b.underline;
+            document.getElementById('btnUnderline').classList.toggle('active', b.underline);
+            saveBoardsToStorage();
+            updatePreview();
+        }
+
+        // AUTOMATIC SCAN FOR ANY WF2_* CARDS
+        async function scanWifiCards() {
+            log("\n>>> Đang quét tìm các card LED WF2 xung quanh...");
+            try {
+                const res = await fetch('/api/scan');
+                const data = await res.json();
+                if (data.success && data.cards) {
+                    log(`Tìm thấy ${data.cards.length} card trong tầm sóng/đã lưu: [${data.cards.join(', ')}]`);
+                    let addedCount = 0;
+                    data.cards.forEach(ssid => {
+                        const exists = boards.some(b => b.ssid.toLowerCase() === ssid.toLowerCase());
+                        if (!exists) {
+                            const newId = boards.length > 0 ? Math.max(...boards.map(b => b.id)) + 1 : 1;
+                            boards.push({
+                                id: newId,
+                                name: `BẢNG ${newId}`,
+                                ssid: ssid,
+                                text: `BẢNG ${newId}`,
+                                color: newId % 2 === 0 ? "red" : "yellow",
+                                fontSize: 16,
+                                alignH: "center",
+                                alignV: "middle",
+                                effect: 37,
+                                speed: 10,
+                                stayTime: 3,
+                                bold: true,
+                                italic: false,
+                                underline: false,
+                                colorfulWords: 0,
+                                hollow: false,
+                                stroke: false,
+                                strokeWidth: 1,
+                                strokeColor: "red",
+                                invert: false,
+                                borderStyle: 0,
+                                borderSpeed: 5,
+                                borderMode: "Clockwise"
+                            });
+                            addedCount++;
+                            log(`  ➕ Đã tự động thêm: BẢNG ${newId} (${ssid})`);
+                        }
+                    });
+
+                    if (addedCount > 0) {
+                        saveBoardsToStorage();
+                        renderTabsAndTrees();
+                        alert(`ĐÃ TÌM THẤY VÀ THÊM TỰ ĐỘNG ${addedCount} CARD MỚI VÀO HỆ THỐNG!\nKhông cần sửa hay build lại code.`);
+                    } else {
+                        alert(`Đã quét xong: Toàn bộ ${data.cards.length} card đều đã có trong danh sách.`);
+                    }
+                }
+            } catch (err) {
+                log(`Lỗi khi quét card: ${err.message}`);
+                alert("Lỗi kết nối máy chủ quét: " + err.message);
+            }
+        }
+
+        // MANUAL ADD BOARD (NO REBUILD NEEDED)
+        function promptAddBoard() {
+            const ssid = prompt("Nhập tên Wi-Fi của card mới (Ví dụ: WF2_8899aabb):", "WF2_");
+            if (!ssid || ssid.trim() === "" || ssid === "WF2_") return;
+
+            const cleanSsid = ssid.trim();
+            const exists = boards.some(b => b.ssid.toLowerCase() === cleanSsid.toLowerCase());
+            if (exists) {
+                alert(`Card ${cleanSsid} đã có trong danh sách!`);
+                return;
+            }
+
+            const newId = boards.length > 0 ? Math.max(...boards.map(b => b.id)) + 1 : 1;
+            boards.push({
+                id: newId,
+                name: `BẢNG ${newId}`,
+                ssid: cleanSsid,
+                text: `BẢNG ${newId}`,
+                color: "green",
+                fontSize: 16,
+                alignH: "center",
+                alignV: "middle",
+                effect: 37,
+                speed: 10,
+                stayTime: 3,
+                bold: true,
+                italic: false,
+                underline: false,
+                colorfulWords: 0,
+                hollow: false,
+                stroke: false,
+                strokeWidth: 1,
+                strokeColor: "red",
+                invert: false,
+                borderStyle: 0,
+                borderSpeed: 5,
+                borderMode: "Clockwise"
+            });
+
+            // Tự động gọi API add profile để máy tính sẵn sàng kết nối
+            fetch('/api/add_profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ssid: cleanSsid, password: '88888888' })
+            }).catch(() => {});
+
+            saveBoardsToStorage();
+            switchBoard(newId);
+            log(`➕ Đã thêm BẢNG ${newId} (${cleanSsid}). Mật khẩu mặc định: 88888888.`);
+        }
+
+        function removeBoard(boardId) {
+            if (boards.length <= 1) {
+                alert("Cần giữ ít nhất 1 bảng LED!");
+                return;
+            }
+            if (!confirm(`Bạn có chắc muốn xóa Bảng ${boardId} khỏi danh sách?`)) return;
+
+            boards = boards.filter(b => b.id !== boardId);
+            if (currentActiveBoardId === boardId) {
+                currentActiveBoardId = boards[0].id;
+            }
+            saveBoardsToStorage();
+            renderTabsAndTrees();
+            switchBoard(currentActiveBoardId);
+        }
+
+        // Alignment Handlers
+        function setAlignH(alignH) {
+            const b = getActiveBoard();
+            b.alignH = alignH;
+
+            updateAlignUI(alignH, b.alignV);
+            saveBoardsToStorage();
+            updatePreview();
+        }
+
+        function setAlignV(alignV) {
+            const b = getActiveBoard();
+            b.alignV = alignV;
+            updateAlignUI(b.alignH, alignV);
+            saveBoardsToStorage();
+            updatePreview();
+        }
+
+        function updateAlignUI(alignH, alignV) {
+            document.getElementById('btnAlignLeft').classList.toggle('active', alignH === 'left');
+            document.getElementById('btnAlignCenter').classList.toggle('active', alignH === 'center');
+            document.getElementById('btnAlignRight').classList.toggle('active', alignH === 'right');
+
+            document.getElementById('btnAlignTop').classList.toggle('active', alignV === 'top');
+            document.getElementById('btnAlignMiddle').classList.toggle('active', alignV === 'middle');
+            document.getElementById('btnAlignBottom').classList.toggle('active', alignV === 'bottom');
+        }
+
+        // Color handler
+        function setColor(colorName) {
+            const b = getActiveBoard();
+            b.color = colorName;
+            updateColorUI(colorName);
+            saveBoardsToStorage();
+            updatePreview();
+        }
+
+        function updateColorUI(colorName) {
+            const hex = colorMap[colorName] || '#00e676';
+            document.getElementById('ledText').style.color = hex;
+            document.querySelectorAll('.color-dot-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-color') === colorName);
+            });
+        }
+
+        function onTextInput() {
+            saveCurrentBoardInputs();
+            renderTabsAndTrees();
+            updatePreview();
+        }
+
+        function onEditorChange() {
+            saveCurrentBoardInputs();
+            updatePreview();
+        }
+
+        function togglePauseSimulation() {
+            isSimRunning = !isSimRunning;
+            document.getElementById('btnPauseSimText').textContent = isSimRunning ? 'Dừng chạy' : 'Tiếp tục';
+            if (isSimRunning) updatePreview();
+        }
+
+        function changeZoom(delta) {
+            currentZoom = Math.max(200, Math.min(600, currentZoom + delta * 50));
+            document.getElementById('zoomPercent').textContent = currentZoom + '%';
+            document.getElementById('zoomLabel').textContent = 'Zoom: ' + currentZoom + '%';
+            const scale = currentZoom / 400;
+            canvas.style.transform = `scale(${scale})`;
+            canvas.style.transformOrigin = 'center center';
+        }
+
+        // NẠP CẤU HÌNH PHẦN CỨNG HUB75 CHO CARD MỚI
+        async function napCauHinhPhanCung() {
+            saveCurrentBoardInputs();
+            const b = getActiveBoard();
+            if (!confirm(`Bạn có muốn nạp Cấu Hình Phần Cứng HUB75 64x32 cho ${b.name} (${b.ssid})?\n\nThao tác này dùng file cấu hình 'phuc.xhds' nạp trực tiếp vào flash của card để sửa vĩnh viễn lỗi vỡ nét/nát chữ!`)) return;
+
+            log(`\n======================================================`);
+            log(`[PHẦN CỨNG] BẮT ĐẦU NẠP CẤU HÌNH HUB75 CHO ${b.name} (${b.ssid})...`);
+            switchTab('info');
+
+            try {
+                const res = await fetch('/api/hw_setting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ssid: b.ssid,
+                        originalWifi: detectedPcWifi
+                    })
+                });
+                const data = await res.json();
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(l => log(l));
+                }
+                if (data.success) {
+                    alert(`THÀNH CÔNG!\n\nĐã nạp xong cấu hình phần cứng HUB75 cho ${b.name} (${b.ssid})!\nBây giờ bạn bấm GỬI ĐỒNG BỘ, chữ sẽ sáng nét 100%!`);
+                } else {
+                    alert(`KẾT QUẢ:\n\n${data.message}`);
+                }
+            } catch (err) {
+                log(`>>> [LỖI] ${err.message}`);
+                alert('Lỗi nạp cấu hình phần cứng: ' + err.message);
+            }
+        }
+
+        function openHelp() {
+            alert('HD2020 Studio V10 Pro:\n- Nút [AB]: 9 Mẫu Chữ 7 Màu (Colorful Words) chuẩn HD2020.\n- Nút [A]: Hiệu ứng nét chữ, Hollow, Stroke, Invert.\n- Đầy đủ 45 hiệu ứng: Pull upward, Left move, Snow, Twinkle...\n- Run border: Viền chạy quanh bảng 64x32 thuận/nghịch chiều kim đồng hồ.\n- Tự động nhận diện & điều khiển đa bảng LED không giới hạn.');
+        }
+
+        // =========================================================================
+        // REALISTIC HD2020 LED MATRIX SIMULATOR (RAINBOW GRADIENTS, RUNNING BORDERS & 45 EFFECTS)
+        // =========================================================================
+        function drawMatrix() {
+            const b = getActiveBoard();
+            const text = b.text || ' ';
+
+            // Clear Black Background
+            ctx.fillStyle = '#06070a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const off = document.createElement('canvas');
+            off.width = 64;
+            off.height = 32;
+            const offCtx = off.getContext('2d');
+            offCtx.fillStyle = '#000';
+            offCtx.fillRect(0, 0, 64, 32);
+
+            const fontName = document.getElementById('fontFamily').value;
+            const fontSize = b.fontSize || 16;
+            const isBold = b.bold !== false;
+            const isItalic = !!b.italic;
+            const fontStyleStr = `${isItalic ? 'italic ' : ''}${isBold ? 'bold ' : ''}${fontSize}px ${fontName}, Arial, sans-serif`;
+            offCtx.font = fontStyleStr;
+            offCtx.textBaseline = 'middle';
+
+            // Determine Fill Style (Normal Color vs Colorful Words Rainbow)
+            let textFillStyle = '#fff';
+            if (b.colorfulWords > 0) {
+                const grad = offCtx.createLinearGradient(0, 0, 64, 32);
+                const shift = (animOffset * 0.05) % 1;
+                grad.addColorStop((0.0 + shift) % 1, '#ff0000');
+                grad.addColorStop((0.2 + shift) % 1, '#ffff00');
+                grad.addColorStop((0.4 + shift) % 1, '#00ff00');
+                grad.addColorStop((0.6 + shift) % 1, '#00ffff');
+                grad.addColorStop((0.8 + shift) % 1, '#0000ff');
+                grad.addColorStop((1.0 + shift) % 1, '#ff00ff');
+                textFillStyle = grad;
+            } else {
+                textFillStyle = '#fff';
+            }
+
+            const textWidth = offCtx.measureText(text).width;
+
+            // Compute Horizontal & Vertical Alignment Base Positions
+            let startX = 0;
+            if (b.alignH === 'center') {
+                startX = Math.max(0, Math.floor((64 - textWidth) / 2));
+            } else if (b.alignH === 'right') {
+                startX = Math.max(0, 64 - textWidth - 2);
+            } else {
+                startX = 2;
+            }
+
+            let baselineY = 16;
+            if (b.alignV === 'top') {
+                baselineY = Math.floor(fontSize / 2) + 2;
+            } else if (b.alignV === 'bottom') {
+                baselineY = 32 - Math.floor(fontSize / 2) - 2;
+            } else {
+                baselineY = 16;
+            }
+
+            // EFFECT MOTION LOGIC (CHUẨN 100% HD2020: DI CHUYỂN VÀO GIỮA + DỪNG STAYTIME GIÂY, KHÔNG BỊ NGẮT)
+            const eff = b.effect;
+            let drawX = startX;
+            let drawY = baselineY;
+            let visibleAlpha = 1.0;
+            let needRestore = false;
+
+            const pauseTicks = Math.max(0, (b.stayTime !== undefined ? b.stayTime : 3) * 18);
+
+            if (isSimRunning) {
+                if (eff === 202) {
+                    // Continuously Move Left (Chạy liên tục không dừng)
+                    drawX = 64 - (animOffset % (textWidth + 64));
+                } else if (eff === 203) {
+                    // Continuously Move Right (Chạy liên tục không dừng)
+                    drawX = -textWidth + (animOffset % (textWidth + 64));
+                } else if (eff === 1) {
+                    // Move Left (Chạy từ phải vào vị trí căn giữa, dừng stayTime giây)
+                    const dist = 64 - startX;
+                    const cycle = dist + pauseTicks;
+                    const t = animOffset % Math.max(1, cycle);
+                    drawX = (t < dist) ? (64 - t) : startX;
+                } else if (eff === 2) {
+                    // Move Right (Chạy từ trái vào vị trí căn giữa, dừng stayTime giây)
+                    const dist = startX + textWidth;
+                    const cycle = dist + pauseTicks;
+                    const t = animOffset % Math.max(1, cycle);
+                    drawX = (t < dist) ? (-textWidth + t) : startX;
+                } else if (eff === 3 || eff === 37) {
+                    // Move Up / Pull upward (Cuộn từ dưới lên vị trí giữa, dừng stayTime giây)
+                    const dist = 32;
+                    const cycle = dist + pauseTicks;
+                    const t = animOffset % Math.max(1, cycle);
+                    drawY = (t < dist) ? (baselineY + (32 - t)) : baselineY;
+                } else if (eff === 4 || eff === 36) {
+                    // Move Down / Pull downward (Cuộn từ trên xuống vị trí giữa, dừng stayTime giây)
+                    const dist = 32;
+                    const cycle = dist + pauseTicks;
+                    const t = animOffset % Math.max(1, cycle);
+                    drawY = (t < dist) ? (baselineY - (32 - t)) : baselineY;
+                } else if (eff === 38 || eff === 12) {
+                    // Pull vertically (Kéo mở dọc 2 chiều chuẩn HD2020)
+                    const dist = 16;
+                    const cycle = dist + pauseTicks;
+                    const t = animOffset % Math.max(1, cycle);
+                    const openH = (t < dist) ? (t * 2) : 32;
+                    offCtx.save();
+                    offCtx.beginPath();
+                    offCtx.rect(0, 16 - openH / 2, 64, openH);
+                    offCtx.clip();
+                    needRestore = true;
+                } else if (eff === 39 || eff === 11) {
+                    // Pull horizontally / Open from middle (Kéo mở ngang từ giữa chuẩn HD2020)
+                    const dist = 32;
+                    const cycle = dist + pauseTicks;
+                    const t = animOffset % Math.max(1, cycle);
+                    const openW = (t < dist) ? (t * 2) : 64;
+                    offCtx.save();
+                    offCtx.beginPath();
+                    offCtx.rect(32 - openW / 2, 0, openW, 32);
+                    offCtx.clip();
+                    needRestore = true;
+                } else if (eff === 13 || eff === 14 || eff === 25) {
+                    // Shutters / Laser
+                    const dist = 32;
+                    const cycle = dist + pauseTicks;
+                    const t = animOffset % Math.max(1, cycle);
+                    const openW = (t < dist) ? (t * 2) : 64;
+                    offCtx.save();
+                    offCtx.beginPath();
+                    offCtx.rect(0, 0, openW, 32);
+                    offCtx.clip();
+                    needRestore = true;
+                } else if (eff === 34) {
+                    // Twinkle (Nhấp nháy)
+                    visibleAlpha = (Math.floor(animOffset / 6) % 2 === 0) ? 1.0 : 0.0;
+                }
+            }
+
+            if (visibleAlpha > 0) {
+                offCtx.fillStyle = textFillStyle;
+
+                if (b.hollow) {
+                    // Hollow (Chữ rỗng)
+                    offCtx.lineWidth = 1;
+                    offCtx.strokeStyle = '#fff';
+                    offCtx.strokeText(text, drawX, drawY);
+                } else {
+                    offCtx.fillText(text, drawX, drawY);
+                }
+
+                if (b.stroke) {
+                    // Stroke (Viền nét chữ)
+                    offCtx.lineWidth = b.strokeWidth || 1;
+                    offCtx.strokeStyle = '#fff';
+                    offCtx.strokeText(text, drawX, drawY);
+                }
+
+                if (b.underline) {
+                    // Gạch chân
+                    offCtx.fillRect(drawX, drawY + (fontSize / 2) + 1, textWidth, 1);
+                }
+            }
+
+            if (needRestore) {
+                offCtx.restore();
+            }
+
+            // BORDER COLOR PATTERNS (CHUẨN 7 MẪU HD2020)
+            const borderPaletteMap = {
+                1: ['#ff0000', '#ff0000', null, '#ffff00', '#ffff00', null, '#00e676', '#00e676', null], // Mẫu 001: Chấm bi Đỏ - Vàng - Lục
+                2: ['#ffffff', '#00e5ff', null, '#00e5ff'], // Mẫu 002: Sao lấp lánh Trắng - Xanh ngọc
+                3: ['#ff0000', '#ff0000', '#ffff00', '#ffff00', '#00e676', '#00e676', '#00e5ff', '#00e5ff', '#2979ff', '#2979ff', '#f50057', '#f50057'], // Mẫu 003: Sóng 7 màu
+                4: ['#ff0000', '#ff0000', '#ff0000', null, '#00e676', '#00e676', '#00e676', null, '#2979ff', '#2979ff', '#2979ff', null], // Mẫu 004: Đa sắc Đỏ - Lục - Lam
+                5: ['#f50057', '#f50057', '#f50057', null, '#00e5ff', '#00e5ff', '#00e5ff', null], // Mẫu 005: Kim cương Tím - Xanh ngọc
+                6: ['#ffff00', '#ffff00', '#ffff00', null, '#ff3333', '#ff3333', '#ff3333', null], // Mẫu 006: Đường gạch neon Vàng - Đỏ
+                7: ['#00e676', '#00e676', '#00e676', '#ffff00', '#ffff00', null] // Mẫu 007: Vệt sao băng Xanh lá - Vàng
+            };
+
+            const borderColors = {};
+            if (b.borderStyle > 0) {
+                const borderPalette = borderPaletteMap[b.borderStyle] || borderPaletteMap[1];
+                const cw = (b.borderMode === 'Clockwise');
+                const bTick = Math.floor(borderTick / Math.max(1, (b.borderSpeed || 5)));
+                const perimeterPixels = (64 + 30) * 2; // 188 pixels chu vi
+
+                for (let pos = 0; pos < perimeterPixels; pos++) {
+                    let bx = 0, by = 0;
+                    if (pos < 64) {
+                        bx = pos; by = 0; // Top
+                    } else if (pos < 64 + 30) {
+                        bx = 63; by = 1 + (pos - 64); // Right
+                    } else if (pos < 64 + 30 + 64) {
+                        bx = 63 - (pos - 94); by = 31; // Bottom
+                    } else {
+                        bx = 0; by = 30 - (pos - 158); // Left
+                    }
+
+                    const shiftedPos = cw ? (pos + bTick) % perimeterPixels : (perimeterPixels + pos - (bTick % perimeterPixels)) % perimeterPixels;
+                    const c = borderPalette[shiftedPos % borderPalette.length];
+                    if (c) {
+                        borderColors[`${bx},${by}`] = c;
+                    }
+                }
+            }
+
+            // SNOW EFFECT OVERLAY
+            if (eff === 28 && isSimRunning) {
+                for (let s = 0; s < 12; s++) {
+                    const sx = (s * 7 + animOffset * 3) % 64;
+                    const sy = (s * 5 + animOffset) % 32;
+                    offCtx.fillStyle = '#fff';
+                    offCtx.fillRect(sx, sy, 1, 1);
+                }
+            }
+
+            // READ OFFSCREEN PIXELS AND RENDER TO PHYSICAL LED DOTS
+            const imgData = offCtx.getImageData(0, 0, 64, 32);
+            const data = imgData.data;
+            const baseColorHex = colorMap[b.color] || '#00e676';
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    const isBorderPixel = (x === 0 || x === 63 || y === 0 || y === 31);
+                    const cx = x * DOT_SIZE + DOT_SIZE / 2;
+                    const cy = y * DOT_SIZE + DOT_SIZE / 2;
+                    const radius = (DOT_SIZE / 2) - 1.2;
+
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+
+                    // Ưu tiên hiển thị viền chạy độc lập chuẩn phần cứng HD2020 quanh 4 cạnh ngoài
+                    if (b.borderStyle > 0 && isBorderPixel) {
+                        const bColor = borderColors[`${x},${y}`];
+                        if (bColor) {
+                            ctx.fillStyle = bColor;
+                            ctx.shadowColor = bColor;
+                            ctx.shadowBlur = 4;
+                        } else {
+                            ctx.fillStyle = '#141720';
+                            ctx.shadowBlur = 0;
+                        }
+                        ctx.fill();
+                        continue;
+                    }
+
+                    const idx = (y * 64 + x) * 4;
+                    let brightness = data[idx];
+
+                    // COLOR INVERSION
+                    if (b.invert) {
+                        brightness = 255 - brightness;
+                    }
+
+                    if (brightness > 20) {
+                        let dotColor = baseColorHex;
+                        if (b.colorfulWords > 0) {
+                            // Map rainbow hue across matrix
+                            const hue = (x / 64 * 360 + animOffset * 4) % 360;
+                            dotColor = `hsl(${hue}, 100%, 55%)`;
+                        }
+
+                        ctx.fillStyle = dotColor;
+                        ctx.shadowColor = dotColor;
+                        ctx.shadowBlur = 4;
+                    } else {
+                        ctx.fillStyle = '#141720';
+                        ctx.shadowBlur = 0;
+                    }
+                    ctx.fill();
+                }
+            }
+        }
+
+        function updatePreview() {
+            if (animTimer) { clearTimeout(animTimer); animTimer = null; }
+
+            const boardId = currentActiveBoardId;
+            const b = boards.find(x => x.id === boardId) || boards[0];
+
+            function loop() {
+                if (currentActiveBoardId !== boardId) return;
+                drawMatrix();
+                if (isSimRunning) {
+                    animOffset += 1;
+                    borderTick += 1;
+                    animTimer = setTimeout(() => requestAnimationFrame(loop), 50);
+                }
+            }
+            loop();
+        }
+
+        // SEND SYNC DYNAMIC BOARDS (ASYNC NON-BLOCKING POLLING - KHÔNG BAO GIỜ BỊ FAILED TO FETCH KHI ĐỔI WI-FI!)
+        async function startSendSync() {
+            saveCurrentBoardInputs();
+
+            const btn = document.getElementById('btnSendBottom');
+            const btnText = document.getElementById('btnSendText');
+            btn.disabled = true;
+            btnText.textContent = 'ĐANG ĐỒNG BỘ CÁC BẢNG...';
+
+            const target = document.getElementById('targetSelect').value;
+            const autoSwitchWifi = document.getElementById('autoSwitchWifi') ? document.getElementById('autoSwitchWifi').checked : true;
+            const reconnectBack = document.getElementById('reconnectBack').checked;
+
+            const payload = {
+                target: target,
+                originalWifi: detectedPcWifi,
+                autoSwitchWifi: autoSwitchWifi ? 'true' : 'false',
+                reconnectBack: reconnectBack ? 'true' : 'false',
+                boards: boards
+            };
+
+            log(`\n======================================================`);
+            log(`[HD2020 PRO V15] BẮT ĐẦU ĐỒNG BỘ ${boards.length} BẢNG LED!`);
+            if (detectedPcWifi) log(`Mạng ban đầu của máy: [${detectedPcWifi}]`);
+            boards.forEach(b => {
+                log(`👉 ${b.name} (${b.ssid}): "${b.text}" (Màu: ${b.color.toUpperCase()}, Căn: ${b.alignH}/${b.alignV}, Hiệu ứng: ${b.effect}, Chữ 7 màu: ${b.colorfulWords > 0 ? 'BẬT' : 'TẮT'}, Viền: ${b.borderStyle > 0 ? 'BẬT' : 'TẮT'})`);
+            });
+
+            switchTab('info');
+
+            try {
+                const res = await fetch('/api/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const startData = await res.json();
+
+                if (startData.async) {
+                    let printedCount = 0;
+                    let finished = false;
+                    const maxPolls = 180; // Tối đa ~140s cho 3 bảng + retry
+                    for (let poll = 0; poll < maxPolls; poll++) {
+                        await new Promise(r => setTimeout(r, 800));
+                        try {
+                            const stRes = await fetch('/api/send_status?t=' + Date.now(), { cache: 'no-store' });
+                            const stData = await stRes.json();
+                            if (stData.logs && stData.logs.length > printedCount) {
+                                for (let i = printedCount; i < stData.logs.length; i++) {
+                                    log(stData.logs[i]);
+                                }
+                                printedCount = stData.logs.length;
+                            }
+                            if (!stData.running) {
+                                finished = true;
+                                if (stData.success) {
+                                    log(`>>> [THÀNH CÔNG] ${stData.message}`);
+                                    alert(`ĐÃ ĐỒNG BỘ THÀNH CÔNG!\n\n${stData.message}`);
+                                } else {
+                                    log(`>>> [KẾT QUẢ] ${stData.message}`);
+                                    alert(`KẾT QUẢ ĐỒNG BỘ:\n\n${stData.message}`);
+                                }
+                                break;
+                            }
+                        } catch (pollErr) {
+                            // Bỏ qua lỗi mạng tạm thời trong khoảnh khắc Windows đang chuyển card Wi-Fi (ERR_NETWORK_CHANGED)
+                        }
+                    }
+                    if (!finished) {
+                        log(`>>> [HOÀN TẤT] Quá trình đồng bộ đã chạy xong dưới nền.`);
+                    }
+                } else {
+                    if (startData.logs && startData.logs.length > 0) {
+                        startData.logs.forEach(l => log(l));
+                    }
+                    if (startData.success) {
+                        log(`>>> [THÀNH CÔNG] ${startData.message}`);
+                        alert(`ĐÃ ĐỒNG BỘ THÀNH CÔNG!\n\n${startData.message}`);
+                    } else {
+                        log(`>>> [KẾT QUẢ] ${startData.message}`);
+                        alert(`KẾT QUẢ ĐỒNG BỘ:\n\n${startData.message}`);
+                    }
+                }
+            } catch (err) {
+                log(`>>> [LỖI] ${err.message}`);
+                alert('Lỗi kết nối máy chủ: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'GỬI ĐỒNG BỘ CÁC BẢNG';
+                checkStatus();
+            }
+        }
+
+        let serverVersionWarned = false;
+        async function checkStatus() {
+            try {
+                const res = await fetch('/api/status', { cache: 'no-store' });
+                const data = await res.json();
+                // Phát hiện máy chủ cũ (V17 trở về trước) vẫn đang chạy -> cảnh báo người dùng khởi động lại
+                const serverLabel = document.getElementById('serverVersionLabel');
+                if (data.version === 'V18') {
+                    if (serverLabel) { serverLabel.textContent = 'ĐANG KẾT NỐI (V18 PRO)'; serverLabel.style.color = '#28a745'; }
+                } else {
+                    if (serverLabel) { serverLabel.textContent = 'MÁY CHỦ CŨ ĐANG CHẠY - HÃY KHỞI ĐỘNG LẠI!'; serverLabel.style.color = '#d32f2f'; }
+                    if (!serverVersionWarned) {
+                        serverVersionWarned = true;
+                        alert('CẢNH BÁO: Cửa sổ máy chủ đang chạy là bản CŨ (trước V18)!\n\n' +
+                              'Bản cũ sẽ làm viền chạy cuộn theo chữ thay vì chạy quanh viền độc lập.\n\n' +
+                              'Hãy đóng TẤT CẢ cửa sổ đen (console) đang mở, rồi nhấp đúp lại file CHAY_WEB_DIEU_KHIEN.bat.');
+                    }
+                }
+                if (data.currentWifi) {
+                    detectedPcWifi = data.currentWifi;
+                    document.getElementById('wifiDetectedLabel').textContent = detectedPcWifi;
+                    document.getElementById('reconnectLabel').innerHTML = 
+                        `Tự động quay về mạng: <strong>${detectedPcWifi}</strong> sau khi gửi`;
+                } else {
+                    document.getElementById('wifiDetectedLabel').textContent = 'Không có Wi-Fi';
+                }
+            } catch (e) {}
+        }
+
+        // Close popups on click outside
+        document.addEventListener('click', (e) => {
+            const popCw = document.getElementById('colorfulWordsPopup');
+            const popTe = document.getElementById('textStylePopup');
+            const btnCw = document.getElementById('btnColorfulWords');
+            const btnTe = document.getElementById('btnTextStyle');
+
+            if (!popCw.contains(e.target) && !btnCw.contains(e.target)) {
+                popCw.style.display = 'none';
+            }
+            if (!popTe.contains(e.target) && !btnTe.contains(e.target)) {
+                popTe.style.display = 'none';
+            }
+        });
+
+        // Init
+        renderTabsAndTrees();
+        loadBoardInputs(currentActiveBoardId);
+        updatePreview();
+        checkStatus();
+        setInterval(checkStatus, 5000);
+    </script>
+</body>
+</html>

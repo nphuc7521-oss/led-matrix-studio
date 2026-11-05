@@ -1,0 +1,53 @@
+name: Build Android APK (Honor 400 Release)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Flutter APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        working-directory: ./led_matrix_app
+        run: flutter pub get
+
+      - name: Build Release APK
+        working-directory: ./led_matrix_app
+        run: flutter build apk --release --split-per-abi=false
+
+      - name: Rename APK
+        run: |
+          mkdir -p build_output
+          cp ./led_matrix_app/build/app/outputs/flutter-apk/app-release.apk ./build_output/HD2020_LED_Studio_Honor.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HD2020_LED_Studio_Honor_APK
+          path: ./build_output/HD2020_LED_Studio_Honor.apk
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./build_output/HD2020_LED_Studio_Honor.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
