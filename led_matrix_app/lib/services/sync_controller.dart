@@ -58,6 +58,31 @@ class SyncController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> syncCurrentBoardDirect() async {
+    if (isSyncing) return false;
+    isSyncing = true;
+    final board = currentBoard;
+    addLog('>>> BẮT ĐẦU NẠP TRỰC TIẾP CHO ${board.name}...');
+    addLog('  (Đảm bảo điện thoại đã kết nối WiFi: ${board.ssid})');
+
+    final packets = HuiduProtocol.generateBoardPackets(board);
+    final sent = await WifiService.sendPacketsToBoard(
+      ip: board.ip,
+      port: board.port,
+      packets: packets,
+    );
+
+    if (sent) {
+      addLog('===> [THÀNH CÔNG] ${board.name} đã nhận chữ: "${board.text}"!');
+    } else {
+      addLog('[LỖI] Không thể gửi tới ${board.ip}:${board.port}. Hãy kiểm tra WiFi!');
+    }
+
+    isSyncing = false;
+    notifyListeners();
+    return sent;
+  }
+
   Future<bool> syncAllBoards() async {
     if (isSyncing) return false;
     isSyncing = true;

@@ -671,69 +671,93 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   // --- 7. NÚT GỬI ĐỒNG BỘ 3 BẢNG ---
   Widget _buildSyncAction(SyncController sync) {
-    return SizedBox(
-      height: 56,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 8,
-        ),
-        onPressed: sync.isSyncing
-            ? null
-            : () async {
-                await sync.syncAllBoards();
-              },
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: sync.isSyncing
-                  ? [Colors.blueGrey.shade700, Colors.blueGrey.shade800]
-                  : [const Color(0xFF06B6D4), const Color(0xFF3B82F6)],
+    return Column(
+      children: [
+        SizedBox(
+          height: 54,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 8,
             ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: sync.isSyncing
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+            onPressed: sync.isSyncing
+                ? null
+                : () async {
+                    await sync.syncAllBoards();
+                  },
+            child: Ink(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: sync.isSyncing
+                      ? [Colors.blueGrey.shade700, Colors.blueGrey.shade800]
+                      : [const Color(0xFF06B6D4), const Color(0xFF3B82F6)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: sync.isSyncing
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'ĐANG NẠP (${(sync.progress * 100).toInt()}%)...',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.bolt, color: Colors.yellowAccent, size: 28),
+                          SizedBox(width: 8),
+                          Text(
+                            '⚡ GỬI ĐỒNG BỘ CẢ 3 BẢNG',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'ĐANG NẠP (${(sync.progress * 100).toInt()}%)...',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.bolt, color: Colors.yellowAccent, size: 28),
-                      SizedBox(width: 8),
-                      Text(
-                        '⚡ GỬI ĐỒNG BỘ CẢ 3 BẢNG',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+            ),
           ),
         ),
-      ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 42,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.cyanAccent.withOpacity(0.6)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.wifi, color: Colors.cyanAccent, size: 18),
+            label: Text(
+              'NẠP TRỰC TIẾP (${sync.currentBoard.name}) KHI ĐÃ BẮT WIFI',
+              style: const TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            onPressed: sync.isSyncing
+                ? null
+                : () async {
+                    await sync.syncCurrentBoardDirect();
+                  },
+          ),
+        ),
+      ],
     );
   }
 
