@@ -25,14 +25,20 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Prepare Android Project
+      - name: Recreate Clean Android Project
         working-directory: ./led_matrix_app
         run: |
-          cp -r android/app/src/main/kotlin/com/ledstudio/led_matrix_app/MainActivity.kt /tmp/MainActivity.kt || true
-          cp -r android/app/src/main/AndroidManifest.xml /tmp/AndroidManifest.xml || true
+          mkdir -p /tmp/backup
+          cp -f android/app/src/main/kotlin/com/ledstudio/led_matrix_app/MainActivity.kt /tmp/backup/MainActivity.kt || true
+          rm -rf android
           flutter create . --platforms=android --org com.ledstudio
-          cp /tmp/MainActivity.kt android/app/src/main/kotlin/com/ledstudio/led_matrix_app/MainActivity.kt || true
-          cp /tmp/AndroidManifest.xml android/app/src/main/AndroidManifest.xml || true
+          cp -f /tmp/backup/MainActivity.kt android/app/src/main/kotlin/com/ledstudio/led_matrix_app/MainActivity.kt || true
+          
+          # Them quyen mang va WiFi vao AndroidManifest.xml
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />' android/app/src/main/AndroidManifest.xml
+          
+          # Bat usesCleartextTraffic
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
 
       - name: Install Dependencies
         working-directory: ./led_matrix_app
