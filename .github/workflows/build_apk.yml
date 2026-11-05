@@ -25,15 +25,24 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Prepare Android Project
+        working-directory: ./led_matrix_app
+        run: |
+          cp -r android/app/src/main/kotlin/com/ledstudio/led_matrix_app/MainActivity.kt /tmp/MainActivity.kt || true
+          cp -r android/app/src/main/AndroidManifest.xml /tmp/AndroidManifest.xml || true
+          flutter create . --platforms=android --org com.ledstudio
+          cp /tmp/MainActivity.kt android/app/src/main/kotlin/com/ledstudio/led_matrix_app/MainActivity.kt || true
+          cp /tmp/AndroidManifest.xml android/app/src/main/AndroidManifest.xml || true
+
       - name: Install Dependencies
         working-directory: ./led_matrix_app
         run: flutter pub get
 
       - name: Build Release APK
         working-directory: ./led_matrix_app
-        run: flutter build apk --release --split-per-abi=false
+        run: flutter build apk --release
 
-      - name: Rename APK
+      - name: Prepare Output
         run: |
           mkdir -p build_output
           cp ./led_matrix_app/build/app/outputs/flutter-apk/app-release.apk ./build_output/HD2020_LED_Studio_Honor.apk
@@ -43,11 +52,3 @@ jobs:
         with:
           name: HD2020_LED_Studio_Honor_APK
           path: ./build_output/HD2020_LED_Studio_Honor.apk
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ./build_output/HD2020_LED_Studio_Honor.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
