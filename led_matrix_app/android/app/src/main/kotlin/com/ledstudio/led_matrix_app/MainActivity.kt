@@ -8,13 +8,9 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
-import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
@@ -25,36 +21,28 @@ class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.ledmatrix.wifi"
     private var connectivityManager: ConnectivityManager? = null
     private var currentCallback: ConnectivityManager.NetworkCallback? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        requestWifiPermissionsIfNeeded()
-    }
 
     private fun requestWifiPermissionsIfNeeded() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val perms = mutableListOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-                if (Build.VERSION.SDK_INT >= 33) {
-                    perms.add("android.permission.NEARBY_WIFI_DEVICES")
-                }
-                val missing = perms.filter {
-                    checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
-                }
-                if (missing.isNotEmpty()) {
-                    requestPermissions(missing.toTypedArray(), 1001)
+                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        ),
+                        1001
+                    )
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+        }
     }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        requestWifiPermissionsIfNeeded()
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -100,7 +88,8 @@ class MainActivity: FlutterActivity() {
                 val wifiIntent = Intent(Settings.ACTION_WIFI_SETTINGS)
                 wifiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(wifiIntent)
-            } catch (_: Exception) {}
+            } catch (e2: Exception) {
+            }
         }
     }
 
@@ -116,43 +105,24 @@ class MainActivity: FlutterActivity() {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+        }
         return false
-    }
-
-    private fun cleanSsid(raw: String?): String {
-        var ssid = raw ?: ""
-        if (ssid.startsWith("\"") && ssid.endsWith("\"") && ssid.length > 2) {
-            ssid = ssid.substring(1, ssid.length - 1)
-        }
-        if (ssid.equals("<unknown ssid>", ignoreCase = true)) {
-            ssid = ""
-        }
-        return ssid
     }
 
     private fun getCurrentWifiSsid(): String {
         try {
             val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             val info = wifiManager.connectionInfo
-            val ssid = cleanSsid(info?.ssid)
-            if (ssid.isNotEmpty()) return ssid
-
-            val cm = connectivityManager ?: return ""
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                for (network in cm.allNetworks) {
-                    val caps = cm.getNetworkCapabilities(network)
-                    if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                        val transportInfo = caps.transportInfo
-                        if (transportInfo is WifiInfo) {
-                            val s2 = cleanSsid(transportInfo.ssid)
-                            if (s2.isNotEmpty()) return s2
-                        }
-                    }
-                }
+            var ssid = info.ssid ?: ""
+            if (ssid.startsWith("\"") && ssid.endsWith("\"") && ssid.length > 2) {
+                ssid = ssid.substring(1, ssid.length - 1)
             }
-        } catch (_: Exception) {}
-        return ""
+            if (ssid == "<unknown ssid>" || ssid == "<unknown ssid>".uppercase()) ssid = ""
+            return ssid
+        } catch (e: Exception) {
+            return ""
+        }
     }
 
     private fun connectToWifi(ssid: String, pass: String, result: MethodChannel.Result) {
@@ -167,57 +137,44 @@ class MainActivity: FlutterActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
-                disconnectWifi()
+                val specifier = WifiNetworkSpecifier.Builder()
+                    .setSsid(ssid)
+                    .setWpa2Passphrase(pass)
+                    .build()
 
-                // Đợi 450ms để hệ điều hành Android giải phóng hoàn toàn kết nối WifiNetworkSpecifier cũ
-                mainHandler.postDelayed({
-                    try {
-                        val specifier = WifiNetworkSpecifier.Builder()
-                            .setSsid(ssid)
-                            .setWpa2Passphrase(pass)
-                            .build()
+                val request = NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .setNetworkSpecifier(specifier)
+                    .build()
 
-                        val request = NetworkRequest.Builder()
-                            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-                            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                            .setNetworkSpecifier(specifier)
-                            .build()
-
-                        var hasResponded = false
-                        val callback = object : ConnectivityManager.NetworkCallback() {
-                            override fun onAvailable(network: Network) {
-                                super.onAvailable(network)
-                                connectivityManager?.bindProcessToNetwork(network)
-                                if (!hasResponded) {
-                                    hasResponded = true
-                                    mainHandler.postDelayed({
-                                        result.success(true)
-                                    }, 500)
-                                }
-                            }
-
-                            override fun onUnavailable() {
-                                super.onUnavailable()
-                                bindCurrentWifi()
-                                if (!hasResponded) {
-                                    hasResponded = true
-                                    mainHandler.post { result.success(false) }
-                                }
-                            }
-
-                            override fun onLost(network: Network) {
-                                super.onLost(network)
-                            }
+                var hasResponded = false
+                val callback = object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: Network) {
+                        super.onAvailable(network)
+                        connectivityManager?.bindProcessToNetwork(network)
+                        if (!hasResponded) {
+                            hasResponded = true
+                            runOnUiThread { result.success(true) }
                         }
-
-                        currentCallback = callback
-                        // Cho phép tối đa 25 giây để người dùng bấm "Kết nối" trên hộp thoại hệ thống Android
-                        connectivityManager?.requestNetwork(request, callback, 25000)
-                    } catch (e: Exception) {
-                        bindCurrentWifi()
-                        result.success(false)
                     }
-                }, 450)
+
+                    override fun onUnavailable() {
+                        super.onUnavailable()
+                        bindCurrentWifi()
+                        if (!hasResponded) {
+                            hasResponded = true
+                            runOnUiThread { result.success(false) }
+                        }
+                    }
+
+                    override fun onLost(network: Network) {
+                        super.onLost(network)
+                    }
+                }
+
+                currentCallback = callback
+                connectivityManager?.requestNetwork(request, callback, 25000)
             } catch (e: Exception) {
                 bindCurrentWifi()
                 result.success(false)
@@ -230,13 +187,17 @@ class MainActivity: FlutterActivity() {
 
     private fun disconnectWifi() {
         try {
-            connectivityManager?.bindProcessToNetwork(null)
-        } catch (_: Exception) {}
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                connectivityManager?.bindProcessToNetwork(null)
+            }
+        } catch (e: Exception) {
+        }
         try {
             currentCallback?.let {
                 connectivityManager?.unregisterNetworkCallback(it)
                 currentCallback = null
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+        }
     }
 }

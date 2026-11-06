@@ -38,6 +38,8 @@ class WifiService {
   /// Tự động kết nối thiết bị Android vào Wi-Fi của card LED
   static Future<bool> connectToBoardWifi(String ssid, String password) async {
     try {
+      await disconnectWifi(ssid);
+      await Future.delayed(const Duration(milliseconds: 450));
       final bool? result = await _channel.invokeMethod<bool>('connectWifi', {
         'ssid': ssid,
         'password': password,

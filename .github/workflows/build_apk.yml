@@ -50,13 +50,12 @@ jobs:
         working-directory: ./led_matrix_app
         run: |
           flutter build apk --release --verbose
-          flutter build apk --debug --verbose
 
       - name: Sign Release APK with apksigner (V1 + V2 + V3)
         run: |
           mkdir -p build_output
           cp ./led_matrix_app/build/app/outputs/flutter-apk/app-release.apk ./build_output/HD2020_LED_Studio_Honor.apk
-          cp ./led_matrix_app/build/app/outputs/flutter-apk/app-debug.apk ./build_output/HD2020_LED_Studio_Debug.apk
+          cp ./led_matrix_app/build/app/outputs/flutter-apk/app-release.apk ./build_output/HD2020_LED_Studio_Debug.apk
 
           # Generate signing keystore only if not restored from cache
           if [ ! -f release.jks ]; then
