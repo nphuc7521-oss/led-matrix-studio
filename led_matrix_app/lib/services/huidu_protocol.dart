@@ -483,12 +483,8 @@ class HuiduProtocol {
     }
   }
 
-  /// Tạo danh sách các gói tin TCP (Cmd 0x02, 0x03, 0x04) chuẩn HDSDK để nạp nội dung chữ
-  /// Lưu ý: KHÔNG gửi Cmd 0x13 (screen.hds) trong lần nạp thường để tránh làm card reset phần cứng / tắt ngúm màn hình!
-  static Future<List<Uint8List>> generateBoardPackets(
-    LedBoard board, {
-    bool includeScreenSetup = false,
-  }) async {
+  /// Tạo toàn bộ 4 gói tin TCP chuẩn HDSDK (Cmd 0x13, 0x02, 0x03, 0x04) sẵn sàng bắn tới card
+  static Future<List<Uint8List>> generateBoardPackets(LedBoard board) async {
     final hasBorder = board.borderStyle > 0;
     final int w = hasBorder ? 62 : 64;
     final int h = hasBorder ? 30 : 32;
@@ -499,26 +495,24 @@ class HuiduProtocol {
     // 2. Tạo nội dung tệp progam.hds
     final progamHds = buildProgamHds(board, rgbPlanes);
 
+    // 3. Tạo nội dung tệp screen.hds (bắt buộc gửi để khởi tạo phiên giao tiếp TCP trên card)
+    final screenHds = getScreenHds();
+
     final transferId = Random().nextInt(0xFFFE) + 1;
-    final packets = <Uint8List>[];
-    int seq = 1;
 
-    // Chỉ gửi Cmd 0x13 khi người dùng chủ động cấu hình lại phần cứng
-    if (includeScreenSetup) {
-      final screenHds = getScreenHds();
-      packets.add(buildPacket(cmd: 0x13, seq: seq++, payload: screenHds));
-    }
+    // GÓI 1: Cmd 0x13 (Screen setup)
+    final p1 = buildPacket(cmd: 0x13, seq: 1, payload: screenHds);
 
-    // GÓI: Cmd 0x02 (Bắt đầu truyền tệp progam.hds)
+    // GÓI 2: Cmd 0x02 (Bắt đầu truyền tệp progam.hds)
     final p2Payload = Uint8List(5);
     p2Payload[0] = 0x05;
     p2Payload[1] = transferId & 0xFF;
     p2Payload[2] = (transferId >> 8) & 0xFF;
     p2Payload[3] = 0x00;
     p2Payload[4] = 0x01; // chunkCount = 1
-    packets.add(buildPacket(cmd: 0x02, seq: seq++, payload: p2Payload));
+    final p2 = buildPacket(cmd: 0x02, seq: 2, payload: p2Payload);
 
-    // GÓI: Cmd 0x03 (Dữ liệu tệp progam.hds)
+    // GÓI 3: Cmd 0x03 (Dữ liệu tệp progam.hds)
     final p3Payload = Uint8List(5 + progamHds.length);
     p3Payload[0] = 0x05;
     p3Payload[1] = transferId & 0xFF;
@@ -526,15 +520,15 @@ class HuiduProtocol {
     p3Payload[3] = 0x00; // chunkIndex = 0
     p3Payload[4] = 0x00;
     p3Payload.setRange(5, 5 + progamHds.length, progamHds);
-    packets.add(buildPacket(cmd: 0x03, seq: seq++, payload: p3Payload));
+    final p3 = buildPacket(cmd: 0x03, seq: 3, payload: p3Payload);
 
-    // GÓI: Cmd 0x04 (Hoàn tất truyền tệp)
+    // GÓI 4: Cmd 0x04 (Hoàn tất truyền tệp)
     final p4Payload = Uint8List(3);
     p4Payload[0] = 0x03;
     p4Payload[1] = transferId & 0xFF;
     p4Payload[2] = (transferId >> 8) & 0xFF;
-    packets.add(buildPacket(cmd: 0x04, seq: seq++, payload: p4Payload));
+    final p4 = buildPacket(cmd: 0x04, seq: 4, payload: p4Payload);
 
-    return packets;
+    return [p1, p2, p3, p4];
   }
 }

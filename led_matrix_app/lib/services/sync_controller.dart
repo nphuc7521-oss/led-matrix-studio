@@ -136,7 +136,7 @@ class SyncController extends ChangeNotifier {
         board: board,
         packets: packets,
         onStatus: (l) => addLog(l),
-        allowFallbackToCurrentWifi: false,
+        allowFallbackToCurrentWifi: true,
       );
 
       if (sent) {

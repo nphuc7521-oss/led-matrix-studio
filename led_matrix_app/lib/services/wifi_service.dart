@@ -78,15 +78,15 @@ class WifiService {
         socket = await Socket.connect(
           ip,
           port,
-          timeout: const Duration(milliseconds: 1200),
+          timeout: const Duration(milliseconds: 2500),
         );
       } catch (_) {
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future.delayed(const Duration(milliseconds: 200));
         await bindCurrentWifi();
         socket = await Socket.connect(
           ip,
           port,
-          timeout: const Duration(milliseconds: 1200),
+          timeout: const Duration(milliseconds: 2500),
         );
       }
       socket.setOption(SocketOption.tcpNoDelay, true);
@@ -112,11 +112,11 @@ class WifiService {
         socket.add(pkt);
         await socket.flush();
 
-        // Chờ nhận phản hồi ACK siêu tốc (tối đa 400ms vì card HD-WF2 phản hồi cực nhanh ~20ms)
+        // Chờ nhận phản hồi ACK chuẩn HDSDK (tối đa 1.2 giây)
         bool ackOk = false;
         int errStatus = -1;
         final sw = Stopwatch()..start();
-        while (sw.elapsedMilliseconds < 400) {
+        while (sw.elapsedMilliseconds < 1200) {
           if (incoming.length >= 22) {
             for (int idx = 0; idx <= incoming.length - 22; idx++) {
               if (incoming[idx] == 0x48 && incoming[idx + 1] == 0x52) {
@@ -134,7 +134,7 @@ class WifiService {
             }
             if (ackOk || errStatus >= 0) break;
           }
-          await Future.delayed(const Duration(milliseconds: 10));
+          await Future.delayed(const Duration(milliseconds: 15));
         }
 
         if (ackOk) {
@@ -148,10 +148,10 @@ class WifiService {
           onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã gửi.');
         }
 
-        await Future.delayed(const Duration(milliseconds: 15));
+        await Future.delayed(const Duration(milliseconds: 30));
       }
 
-      await Future.delayed(const Duration(milliseconds: 40));
+      await Future.delayed(const Duration(milliseconds: 60));
       await sub.cancel();
       return ackSuccessCount > 0;
     } catch (e) {
@@ -171,7 +171,7 @@ class WifiService {
     required LedBoard board,
     required List<Uint8List> packets,
     required Function(String status) onStatus,
-    bool allowFallbackToCurrentWifi = false,
+    bool allowFallbackToCurrentWifi = true,
   }) async {
     final currentSsid = await getCurrentWifiSsid();
     if (currentSsid.isNotEmpty &&
@@ -179,7 +179,7 @@ class WifiService {
       onStatus('  [WIFI] Đang kết nối đúng card: ${board.ssid}');
       await bindCurrentWifi();
     } else {
-      onStatus('  [WIFI] Đang chuyển sang Wi-Fi: ${board.ssid}...');
+      onStatus('  [WIFI] Đang kết nối sang Wi-Fi: ${board.ssid}...');
       final connected = await connectToBoardWifi(board.ssid, board.password);
       await Future.delayed(const Duration(milliseconds: 400));
 
@@ -189,12 +189,7 @@ class WifiService {
             afterSsid.toLowerCase() == board.ssid.toLowerCase();
 
         if (!isMatchedNow) {
-          if (!allowFallbackToCurrentWifi) {
-            onStatus(
-              '  [CHẶN] Chưa kết nối Wi-Fi ${board.ssid}. Tránh gửi đè làm tắt bảng!',
-            );
-            return false;
-          }
+          // Nếu nhận diện rõ ràng đang bắt một card WF2 KHÁC (ví dụ card 1 đang bật mà gửi cho card 2), mới chặn để tránh ghi đè
           if (afterSsid.isNotEmpty &&
               afterSsid.toLowerCase().startsWith('wf2_') &&
               afterSsid.toLowerCase() != board.ssid.toLowerCase()) {
@@ -203,7 +198,14 @@ class WifiService {
             );
             return false;
           }
-          onStatus('  [WIFI] Thử truyền qua Wi-Fi hiện tại...');
+
+          if (!allowFallbackToCurrentWifi) {
+            onStatus(
+              '  [CẢNH BÁO] Chưa kết nối Wi-Fi ${board.ssid}.',
+            );
+            return false;
+          }
+          onStatus('  [WIFI] Đang thử gửi lệnh tới card...');
         }
       }
     }

@@ -174,8 +174,8 @@ class MainActivity: FlutterActivity() {
                 }
 
                 currentCallback = callback
-                // Rút ngắn timeout từ 25 giây xuống còn 4 giây để phản hồi siêu nhanh, không bắt người dùng chờ
-                connectivityManager?.requestNetwork(request, callback, 4000)
+                // Timeout 12 giây để Android có đủ thời gian quét và hoàn tất bắt tay Wi-Fi với card LED
+                connectivityManager?.requestNetwork(request, callback, 12000)
             } catch (e: Exception) {
                 bindCurrentWifi()
                 result.success(false)
