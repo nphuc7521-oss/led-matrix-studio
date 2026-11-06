@@ -117,7 +117,7 @@ class SyncController extends ChangeNotifier {
     await WifiService.openWifiSettings();
   }
 
-  /// Nạp trực tiếp cho 1 bảng đang chọn (Tự động chuyển sang Wi-Fi của bảng đó nếu cần)
+  /// Nạp trực tiếp cho 1 bảng đang chọn (Bắt buộc đúng Wi-Fi card đó để không làm tắt card khác)
   Future<bool> syncCurrentBoardDirect() async {
     if (isSyncing) return false;
     isSyncing = true;
@@ -136,13 +136,14 @@ class SyncController extends ChangeNotifier {
         board: board,
         packets: packets,
         onStatus: (l) => addLog(l),
-        allowFallbackToCurrentWifi: true,
+        allowFallbackToCurrentWifi: false,
       );
 
       if (sent) {
         addLog('===> [THÀNH CÔNG] ${board.name} đã hiển thị chữ "${board.text}"!');
       } else {
-        addLog('[HƯỚNG DẪN] Hãy kết nối Wi-Fi "${board.ssid}" (Mật khẩu: 88888888) rồi bấm nạp lại!');
+        addLog('[HƯỚNG DẪN] Đang mở danh sách Wi-Fi -> Chạm chọn Wi-Fi "${board.ssid}" (Mật khẩu: 88888888) rồi bấm Nạp lại!');
+        await WifiService.openWifiSettings();
       }
 
       isSyncing = false;
@@ -156,7 +157,7 @@ class SyncController extends ChangeNotifier {
     }
   }
 
-  /// Nạp tuần tự cho cả 3 bảng LED (Có đổi Wi-Fi tự động giữa các card)
+  /// Nạp tuần tự cho cả 3 bảng LED siêu tốc
   Future<bool> syncAllBoards() async {
     if (isSyncing) return false;
     isSyncing = true;
@@ -199,7 +200,7 @@ class SyncController extends ChangeNotifier {
 
       progress = (i + 1) / total;
       notifyListeners();
-      await Future.delayed(const Duration(milliseconds: 800));
+      await Future.delayed(const Duration(milliseconds: 150));
     }
 
     isSyncing = false;
@@ -209,7 +210,7 @@ class SyncController extends ChangeNotifier {
     } else {
       addLog('=== [ĐỒNG BỘ XONG] Thành công $successCount/$total bảng. ===');
       if (successCount < total) {
-        addLog('💡 Mẹo: Nếu điện thoại chặn tự chuyển Wi-Fi, bạn có thể bấm nút Wi-Fi trên góc hoặc chọn từng Bảng -> Kết nối Wi-Fi bảng đó -> Bấm "NẠP RIÊNG BẢNG NÀY".');
+        addLog('💡 Mẹo: Trên Android, bạn có thể chọn từng Bảng (Bảng 1, 2, 3) -> Kết nối Wi-Fi card đó -> Bấm "NẠP RIÊNG BẢNG NÀY" (chỉ 1 giây/bảng)!');
       }
     }
     notifyListeners();

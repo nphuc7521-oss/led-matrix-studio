@@ -39,7 +39,7 @@ class WifiService {
   static Future<bool> connectToBoardWifi(String ssid, String password) async {
     try {
       await disconnectWifi(ssid);
-      await Future.delayed(const Duration(milliseconds: 450));
+      await Future.delayed(const Duration(milliseconds: 200));
       final bool? result = await _channel.invokeMethod<bool>('connectWifi', {
         'ssid': ssid,
         'password': password,
@@ -62,7 +62,7 @@ class WifiService {
     } catch (_) {}
   }
 
-  /// Bắn chuỗi 4 gói tin Huidu chuẩn (Cmd 0x13, 0x02, 0x03, 0x04) qua TCP 6101 có kiểm tra ACK
+  /// Bắn chuỗi 4 gói tin Huidu chuẩn (Cmd 0x13, 0x02, 0x03, 0x04) qua TCP 6101 siêu tốc
   static Future<bool> sendPacketsToBoard({
     required String ip,
     required int port,
@@ -73,21 +73,20 @@ class WifiService {
 
     Socket? socket;
     try {
-      onLog?.call('  [TCP] Đang mở kết nối tới $ip:$port...');
+      onLog?.call('  [TCP] Mở kết nối tới $ip:$port...');
       try {
         socket = await Socket.connect(
           ip,
           port,
-          timeout: const Duration(seconds: 4),
+          timeout: const Duration(milliseconds: 2200),
         );
       } catch (_) {
-        // Thử bind lại Wi-Fi và kết nối lần 2 nếu DHCP vừa cấp IP xong
-        await Future.delayed(const Duration(milliseconds: 800));
+        await Future.delayed(const Duration(milliseconds: 250));
         await bindCurrentWifi();
         socket = await Socket.connect(
           ip,
           port,
-          timeout: const Duration(seconds: 5),
+          timeout: const Duration(milliseconds: 2500),
         );
       }
       socket.setOption(SocketOption.tcpNoDelay, true);
@@ -108,16 +107,16 @@ class WifiService {
 
         incoming.clear();
         onLog?.call(
-          '  [GỬI] Gói tin $cmdHex (Seq ${i + 1}/${packets.length}, ${pkt.length}B)...',
+          '  [GỬI] Gói $cmdHex (Seq ${i + 1}/${packets.length}, ${pkt.length}B)...',
         );
         socket.add(pkt);
         await socket.flush();
 
-        // Chờ nhận phản hồi ACK (HR, tìm khung 0x48 0x52 có byte +20 == cmd)
+        // Chờ nhận phản hồi ACK siêu tốc (tối đa 1.0 giây)
         bool ackOk = false;
         int errStatus = -1;
         final sw = Stopwatch()..start();
-        while (sw.elapsedMilliseconds < 3000) {
+        while (sw.elapsedMilliseconds < 1000) {
           if (incoming.length >= 22) {
             for (int idx = 0; idx <= incoming.length - 22; idx++) {
               if (incoming[idx] == 0x48 && incoming[idx + 1] == 0x52) {
@@ -135,28 +134,28 @@ class WifiService {
             }
             if (ackOk || errStatus >= 0) break;
           }
-          await Future.delayed(const Duration(milliseconds: 25));
+          await Future.delayed(const Duration(milliseconds: 15));
         }
 
         if (ackOk) {
           ackSuccessCount++;
-          onLog?.call('  [ACK OK] Card xác nhận gói $cmdHex thành công.');
+          onLog?.call('  [ACK OK] Card nhận thành công gói $cmdHex.');
         } else if (errStatus >= 0) {
           onLog?.call(
             '  [CẢNH BÁO] Card phản hồi mã 0x${errStatus.toRadixString(16).toUpperCase()} cho gói $cmdHex.',
           );
         } else {
-          onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã truyền xong.');
+          onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã gửi.');
         }
 
-        await Future.delayed(const Duration(milliseconds: 120));
+        await Future.delayed(const Duration(milliseconds: 35));
       }
 
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 80));
       await sub.cancel();
       return ackSuccessCount > 0;
     } catch (e) {
-      onLog?.call('  [LỖI SOCKET] Không thể giao tiếp tại $ip:$port ($e)');
+      onLog?.call('  [LỖI SOCKET] Không thể giao tiếp tới $ip:$port ($e)');
       return false;
     } finally {
       try {
@@ -165,10 +164,9 @@ class WifiService {
     }
   }
 
-  /// Quy trình nạp một bảng đơn:
-  /// 1. Kiểm tra Wi-Fi hiện tại -> nếu khác thì tự động yêu cầu kết nối
-  /// 2. Ép bind Wi-Fi
-  /// 3. Bắn 4 gói tin TCP
+  /// Quy trình nạp một bảng:
+  /// 1. Kiểm tra Wi-Fi hiện tại -> nếu khác thì tự động kết nối
+  /// 2. Bắt buộc kiểm tra đúng SSID của card mới nạp, tránh nạp đè làm tắt card khác
   static Future<bool> updateSingleBoard({
     required LedBoard board,
     required List<Uint8List> packets,
@@ -178,14 +176,12 @@ class WifiService {
     final currentSsid = await getCurrentWifiSsid();
     if (currentSsid.isNotEmpty &&
         currentSsid.toLowerCase() == board.ssid.toLowerCase()) {
-      onStatus('  [WIFI] Đã kết nối sẵn đúng card: ${board.ssid}');
+      onStatus('  [WIFI] Đang kết nối đúng card: ${board.ssid}');
       await bindCurrentWifi();
     } else {
-      onStatus(
-        '  [WIFI] Đang chuyển sang Wi-Fi: ${board.ssid} (Bấm "Kết nối" nếu máy hỏi)...',
-      );
+      onStatus('  [WIFI] Đang chuyển sang Wi-Fi: ${board.ssid}...');
       final connected = await connectToBoardWifi(board.ssid, board.password);
-      await Future.delayed(const Duration(milliseconds: 900));
+      await Future.delayed(const Duration(milliseconds: 400));
 
       if (!connected) {
         final afterSsid = await getCurrentWifiSsid();
@@ -195,7 +191,7 @@ class WifiService {
         if (!isMatchedNow) {
           if (!allowFallbackToCurrentWifi) {
             onStatus(
-              '  [BỎ QUA] Chưa kết nối được Wi-Fi ${board.ssid}. Không gửi đè lên bảng khác!',
+              '  [CHẶN] Chưa kết nối Wi-Fi ${board.ssid}. Tránh gửi đè làm tắt bảng!',
             );
             return false;
           }
@@ -203,13 +199,11 @@ class WifiService {
               afterSsid.toLowerCase().startsWith('wf2_') &&
               afterSsid.toLowerCase() != board.ssid.toLowerCase()) {
             onStatus(
-              '  [CẢNH BÁO] Điện thoại đang bắt Wi-Fi "$afterSsid" khác với "${board.ssid}". Vui lòng chọn đúng Wi-Fi!',
+              '  [CHẶN] Đang bắt Wi-Fi "$afterSsid" khác với "${board.ssid}". Không gửi để tránh tắt bảng!',
             );
             return false;
           }
-          onStatus(
-            '  [WIFI] Đang thử truyền qua kết nối Wi-Fi hiện tại của máy...',
-          );
+          onStatus('  [WIFI] Thử truyền qua Wi-Fi hiện tại...');
         }
       }
     }
@@ -222,7 +216,7 @@ class WifiService {
     );
 
     if (sent) {
-      onStatus('  [THÀNH CÔNG] ${board.name} (${board.ssid}) đã sáng chữ mới!');
+      onStatus('  ===> [THÀNH CÔNG] ${board.name} (${board.ssid}) đã sáng chữ mới!');
     } else {
       onStatus('  [LỖI] Card ${board.ssid} không phản hồi tại ${board.ip}:${board.port}');
     }

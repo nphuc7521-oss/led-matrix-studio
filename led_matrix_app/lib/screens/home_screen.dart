@@ -1,4 +1,5 @@
-import 'dart:math';
+﻿import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/board.dart';
@@ -1334,26 +1335,73 @@ class LedSimulatorPainter extends CustomPainter {
     final dotHeight = size.height / rows;
     final radius = min(dotWidth, dotHeight) * 0.42;
 
-    // Palette viền 7 mẫu
-    final borderPalettes = {
-      1: [const Color(0xFFFF0000), const Color(0xFFFFEB3B), const Color(0xFF00E676)],
-      2: [Colors.white, const Color(0xFF00E5FF)],
-      3: [
-        const Color(0xFFFF0000),
-        const Color(0xFFFFEB3B),
-        const Color(0xFF00E676),
-        const Color(0xFF00E5FF),
-        const Color(0xFF2979FF),
-        const Color(0xFFF50057),
+    // Palette viền 7 mẫu chuẩn xác 100% như Web V18 (có các điểm ngắt null tạo hiệu ứng lấp lánh/chấm bi)
+    final borderPaletteMap = <int, List<Color?>>{
+      1: [
+        const Color(0xFFFF0000), const Color(0xFFFF0000), null,
+        const Color(0xFFFFEB3B), const Color(0xFFFFEB3B), null,
+        const Color(0xFF00E676), const Color(0xFF00E676), null,
       ],
-      4: [const Color(0xFFFF0000), const Color(0xFF00E676), const Color(0xFF2979FF)],
-      5: [const Color(0xFFF50057), const Color(0xFF00E5FF)],
-      6: [const Color(0xFFFFEB3B), const Color(0xFFFF3333)],
-      7: [const Color(0xFF00E676), const Color(0xFFFFEB3B)],
+      2: [Colors.white, const Color(0xFF00E5FF), null, const Color(0xFF00E5FF)],
+      3: [
+        const Color(0xFFFF0000), const Color(0xFFFF0000),
+        const Color(0xFFFFEB3B), const Color(0xFFFFEB3B),
+        const Color(0xFF00E676), const Color(0xFF00E676),
+        const Color(0xFF00E5FF), const Color(0xFF00E5FF),
+        const Color(0xFF2979FF), const Color(0xFF2979FF),
+        const Color(0xFFF50057), const Color(0xFFF50057),
+      ],
+      4: [
+        const Color(0xFFFF0000), const Color(0xFFFF0000), const Color(0xFFFF0000), null,
+        const Color(0xFF00E676), const Color(0xFF00E676), const Color(0xFF00E676), null,
+        const Color(0xFF2979FF), const Color(0xFF2979FF), const Color(0xFF2979FF), null,
+      ],
+      5: [
+        const Color(0xFFF50057), const Color(0xFFF50057), const Color(0xFFF50057), null,
+        const Color(0xFF00E5FF), const Color(0xFF00E5FF), const Color(0xFF00E5FF), null,
+      ],
+      6: [
+        const Color(0xFFFFEB3B), const Color(0xFFFFEB3B), const Color(0xFFFFEB3B), null,
+        const Color(0xFFFF3333), const Color(0xFFFF3333), const Color(0xFFFF3333), null,
+      ],
+      7: [
+        const Color(0xFF00E676), const Color(0xFF00E676), const Color(0xFF00E676),
+        const Color(0xFFFFEB3B), const Color(0xFFFFEB3B), null,
+      ],
     };
 
-    final hasBorder = board.borderStyle > 0;
-    final borderPalette = borderPalettes[board.borderStyle] ?? borderPalettes[1]!;
+    final Map<int, Color> borderColors = {};
+    if (board.borderStyle > 0) {
+      final borderPalette = borderPaletteMap[board.borderStyle] ?? borderPaletteMap[1]!;
+      final cw = board.borderMode != 'Anti-clockwise';
+      final bTick = (animProgress * 60).toInt();
+      const perimeterPixels = (64 + 30) * 2; // 188 pixels
+
+      for (int pos = 0; pos < perimeterPixels; pos++) {
+        int bx = 0, by = 0;
+        if (pos < 64) {
+          bx = pos;
+          by = 0;
+        } else if (pos < 64 + 30) {
+          bx = 63;
+          by = 1 + (pos - 64);
+        } else if (pos < 64 + 30 + 64) {
+          bx = 63 - (pos - 94);
+          by = 31;
+        } else {
+          bx = 0;
+          by = 30 - (pos - 158);
+        }
+
+        final shiftedPos = cw
+            ? (pos + bTick) % perimeterPixels
+            : (perimeterPixels + pos - (bTick % perimeterPixels)) % perimeterPixels;
+        final c = borderPalette[shiftedPos % borderPalette.length];
+        if (c != null) {
+          borderColors[by * cols + bx] = c;
+        }
+      }
+    }
 
     // Tính offset chạy animation của chữ
     final eff = board.effect;
@@ -1370,61 +1418,74 @@ class LedSimulatorPainter extends CustomPainter {
       shiftY = (animProgress * 24).toInt();
     }
 
-    // Vẽ từng chấm LED
+    // Vẽ nền LED & viền chạy độc lập chuẩn Web V18
+    final darkLedPaint = Paint()..color = const Color(0xFF141720);
+
     for (int y = 0; y < rows; y++) {
       for (int x = 0; x < cols; x++) {
         final cx = x * dotWidth + dotWidth / 2;
         final cy = y * dotHeight + dotHeight / 2;
-
         final isBorderPixel = (x == 0 || x == cols - 1 || y == 0 || y == rows - 1);
 
-        if (hasBorder && isBorderPixel) {
-          // Tính màu viền chạy quanh 4 cạnh
-          int perimeterIndex = 0;
-          if (y == 0) perimeterIndex = x;
-          else if (x == cols - 1) perimeterIndex = cols + y;
-          else if (y == rows - 1) perimeterIndex = cols + rows + (cols - 1 - x);
-          else perimeterIndex = cols * 2 + rows + (rows - 1 - y);
-
-          final tick = (animProgress * 20).toInt();
-          final isCw = board.borderMode == 'Clockwise';
-          final palIdx = isCw
-              ? (perimeterIndex + tick) % borderPalette.length
-              : (perimeterIndex - tick).abs() % borderPalette.length;
-
-          final bColor = borderPalette[palIdx];
-          final paint = Paint()..color = bColor;
-          canvas.drawCircle(Offset(cx, cy), radius, paint);
+        if (board.borderStyle > 0 && isBorderPixel) {
+          final bColor = borderColors[y * cols + x];
+          if (bColor != null) {
+            final paint = Paint()
+              ..color = bColor
+              ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 2.5);
+            canvas.drawCircle(Offset(cx, cy), radius, paint);
+          } else {
+            canvas.drawCircle(Offset(cx, cy), radius, darkLedPaint);
+          }
           continue;
         }
 
-        // Vẽ các chấm LED nền & chữ
-        final paint = Paint()..color = const Color(0xFF141720);
-        canvas.drawCircle(Offset(cx, cy), radius, paint);
+        canvas.drawCircle(Offset(cx, cy), radius, darkLedPaint);
       }
     }
 
-    // Vẽ chữ mô phỏng đơn giản lướt trên mặt LED
+    // Vẽ chữ mô phỏng rực rỡ chuẩn Web V18 (Chữ 7 Màu [AB] dạng Gradient chuyển sắc)
     if (board.text.isNotEmpty) {
       final baseColor = HuiduProtocol.parseColor(board.color);
-      final textSpan = TextSpan(
-        text: board.text,
-        style: TextStyle(
-          color: board.colorfulWords > 0 ? const Color(0xFF00E5FF) : baseColor,
+      final isRainbow = board.colorfulWords > 0;
+
+      TextStyle textStyle;
+      if (isRainbow) {
+        textStyle = TextStyle(
           fontSize: 16,
-          fontWeight: FontWeight.bold,
+          fontWeight: board.bold ? FontWeight.w900 : FontWeight.bold,
+          fontStyle: board.italic ? FontStyle.italic : FontStyle.normal,
+          fontFamily: board.fontFamily,
+          foreground: Paint()
+            ..shader = ui.Gradient.linear(
+              Offset(shiftX.toDouble(), 0),
+              Offset(shiftX + size.width * 0.85, 0),
+              const [
+                Color(0xFFFF0000),
+                Color(0xFFFFEB3B),
+                Color(0xFF00E676),
+                Color(0xFF00E5FF),
+                Color(0xFF2979FF),
+                Color(0xFFF50057),
+                Color(0xFFFF0000),
+              ],
+            ),
+        );
+      } else {
+        textStyle = TextStyle(
+          color: baseColor,
+          fontSize: 16,
+          fontWeight: board.bold ? FontWeight.w900 : FontWeight.bold,
+          fontStyle: board.italic ? FontStyle.italic : FontStyle.normal,
           fontFamily: board.fontFamily,
           shadows: [
-            Shadow(
-              color: (board.colorfulWords > 0 ? const Color(0xFF00E5FF) : baseColor).withOpacity(0.8),
-              blurRadius: 8,
-            )
+            Shadow(color: baseColor.withOpacity(0.8), blurRadius: 6),
           ],
-        ),
-      );
+        );
+      }
 
       final tp = TextPainter(
-        text: textSpan,
+        text: TextSpan(text: board.text, style: textStyle),
         textAlign: TextAlign.center,
         textDirection: TextDirection.ltr,
       );
@@ -1434,7 +1495,13 @@ class LedSimulatorPainter extends CustomPainter {
       double ty = (size.height - tp.height) / 2 + shiftY;
 
       canvas.save();
-      canvas.clipRect(Rect.fromLTWH(4, 4, size.width - 8, size.height - 8));
+      final clipMargin = board.borderStyle > 0 ? 8.0 : 4.0;
+      canvas.clipRect(Rect.fromLTWH(
+        clipMargin,
+        clipMargin,
+        size.width - clipMargin * 2,
+        size.height - clipMargin * 2,
+      ));
       tp.paint(canvas, Offset(tx, ty));
       canvas.restore();
     }

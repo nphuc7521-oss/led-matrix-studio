@@ -174,7 +174,8 @@ class MainActivity: FlutterActivity() {
                 }
 
                 currentCallback = callback
-                connectivityManager?.requestNetwork(request, callback, 25000)
+                // Rút ngắn timeout từ 25 giây xuống còn 4 giây để phản hồi siêu nhanh, không bắt người dùng chờ
+                connectivityManager?.requestNetwork(request, callback, 4000)
             } catch (e: Exception) {
                 bindCurrentWifi()
                 result.success(false)
