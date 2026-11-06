@@ -253,7 +253,7 @@ class HuiduProtocol {
         color: Colors.white,
         fontSize: curFontSize.toDouble(),
         fontWeight: board.bold ? FontWeight.bold : FontWeight.normal,
-        fontStyle: board.italic ? FontStyle.italic : FontWeight.normal,
+        fontStyle: board.italic ? FontStyle.italic : FontStyle.normal,
         decoration:
             board.underline ? TextDecoration.underline : TextDecoration.none,
         height: 1.0,
