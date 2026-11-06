@@ -52,3 +52,14 @@ jobs:
         with:
           name: HD2020_LED_Studio_Honor_APK
           path: ./build_output/HD2020_LED_Studio_Honor.apk
+
+      - name: Create Direct Download Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: HD2020 LED Studio Mobile v1.0.${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: ./build_output/HD2020_LED_Studio_Honor.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
