@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/board.dart';
 import '../services/sync_controller.dart';
+import '../services/huidu_protocol.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
