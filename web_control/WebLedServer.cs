@@ -479,7 +479,7 @@ namespace LedMatrixWeb {
                     }
                 }
             } catch {}
-            return "192.168.0.104";
+            return "192.168.0.105";
         }
 
         private static void HandleApiStatus(NetworkStream stream) {

@@ -21,6 +21,7 @@
             });
         }
     </script>
+    <script src="qrcode.min.js"></script>
     <script src="qr.js"></script>
     <title>HD2020 Studio Pro - Điều Khiển Đa Bảng LED (Hỗ Trợ iPhone & Android)</title>
     <style>
@@ -1557,22 +1558,25 @@ Viền chạy quanh 4 cạnh độc lập, chữ 7 màu [AB] rực rỡ!</div>
     <div class="modal-overlay" id="qrModal">
         <div class="modal-box" style="text-align: center;">
             <div class="modal-header">
-                <span>📱 Kết Nối Điều Khiển Trên iPhone & Android</span>
+                <span>📱 Kết Nối Điện Thoại (iPhone & Android)</span>
                 <span class="popup-close" onclick="closeModal('qrModal')">&times;</span>
             </div>
             <div class="modal-body" style="align-items: center;">
-                <p style="color: var(--text-muted); font-size: 11.5px; line-height: 1.4;">
-                    Kết nối <strong>iPhone</strong> vào cùng mạng Wi-Fi với máy tính, rồi mở Camera quét mã QR bên dưới:
+                <div style="display: flex; gap: 8px; margin-bottom: 10px; width: 100%;">
+                    <button id="qrTabWeb" onclick="switchQrMode('web')" style="flex: 1; padding: 7px 4px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: 1px solid var(--accent-cyan); background: var(--accent-cyan); color: #0b0f19; cursor: pointer;">🌐 1. Mở Web Điều Khiển</button>
+                    <button id="qrTabApk" onclick="switchQrMode('apk')" style="flex: 1; padding: 7px 4px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: var(--text-main); cursor: pointer;">📥 2. Tải App APK Android</button>
+                </div>
+                <p id="qrDescLabel" style="color: var(--text-muted); font-size: 12px; line-height: 1.5; margin-bottom: 6px;">
+                    Mở Camera điện thoại hoặc Zalo quét mã QR bên dưới:
                 </p>
-                <div id="qrCodeContainer" style="background: #ffffff; padding: 10px; border-radius: 8px; margin: 6px auto; width: 180px; height: 180px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-                    <canvas id="qrCanvas" width="160" height="160"></canvas>
+                <div id="qrCodeContainer" style="background: #ffffff; padding: 12px; border-radius: 12px; margin: 6px auto; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(0,0,0,0.6);">
                 </div>
-                <div style="background: rgba(0,0,0,0.4); padding: 8px 12px; border-radius: 6px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                    <span id="qrUrlLabel">http://192.168.0.104:8080</span>
-                    <button class="tool-btn" onclick="copyPhoneUrl()" style="padding: 3px 8px; font-weight: 700;">Sao chép</button>
+                <div style="background: rgba(0,0,0,0.5); padding: 8px 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); display: flex; align-items: center; justify-content: space-between; width: 100%; border: 1px solid rgba(0, 229, 255, 0.2);">
+                    <span id="qrUrlLabel" style="word-break: break-all; font-weight: 600; font-size: 11.5px;">http://192.168.0.105:8080</span>
+                    <button class="tool-btn" onclick="copyPhoneUrl()" style="padding: 4px 10px; font-weight: 700; white-space: nowrap; margin-left: 8px;">Sao chép</button>
                 </div>
-                <div style="text-align: left; font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-top: 4px;">
-                    ✨ <strong>Mẹo iOS (Safari):</strong> Nhấn nút <strong>Chia sẻ (Share)</strong> ở thanh dưới Safari -> Chọn <strong>"Thêm vào Màn hình chính" (Add to Home Screen)</strong> để tạo biểu tượng ứng dụng App điều khiển ngay trên màn hình iPhone!
+                <div id="qrNoteLabel" style="text-align: left; font-size: 11.5px; color: #94a3b8; line-height: 1.5; margin-top: 8px; background: rgba(30, 41, 59, 0.6); padding: 8px 10px; border-radius: 6px; width: 100%;">
+                    💡 <strong>Mở Web:</strong> Điện thoại cần kết nối cùng Wi-Fi với máy tính. Hoặc bấm <strong>Sao chép</strong> dán vào Zalo/Chrome trên điện thoại.
                 </div>
             </div>
             <div class="modal-footer">
@@ -1984,16 +1988,74 @@ Viền chạy quanh 4 cạnh độc lập, chữ 7 màu [AB] rực rỡ!</div>
             document.getElementById('hwModal').style.display = 'flex';
         }
 
-        function openQrModal() {
-            const hostIp = (serverLocalIp && serverLocalIp !== '127.0.0.1') ? serverLocalIp : (window.location.hostname || '192.168.0.104');
-            const url = `http://${hostIp}:8080`;
-            document.getElementById('qrUrlLabel').textContent = url;
-            document.getElementById('qrModal').style.display = 'flex';
-            if (window.drawStandardQrCode) {
-                window.drawStandardQrCode('qrCanvas', url, 6);
-            } else {
-                drawQrCodeToCanvas('qrCanvas', url);
+        let currentQrMode = 'web';
+        let qrCodeInstance = null;
+
+        function getQrTargetUrl(mode) {
+            if (mode === 'apk') {
+                return 'https://github.com/nphuc7521-oss/led-matrix-studio/releases/download/v1.0.14/HD2020_LED_Studio_Honor.apk';
             }
+            let hostIp = serverLocalIp;
+            if (!hostIp || hostIp === '127.0.0.1' || hostIp === 'localhost') {
+                hostIp = (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? window.location.hostname : '192.168.0.105';
+            }
+            return `http://${hostIp}:8080`;
+        }
+
+        function switchQrMode(mode) {
+            currentQrMode = mode;
+            const btnWeb = document.getElementById('qrTabWeb');
+            const btnApk = document.getElementById('qrTabApk');
+            const desc = document.getElementById('qrDescLabel');
+            const note = document.getElementById('qrNoteLabel');
+
+            if (mode === 'apk') {
+                btnApk.style.background = 'var(--accent-cyan)';
+                btnApk.style.color = '#0b0f19';
+                btnApk.style.borderColor = 'var(--accent-cyan)';
+                btnWeb.style.background = 'rgba(255,255,255,0.05)';
+                btnWeb.style.color = 'var(--text-main)';
+                btnWeb.style.borderColor = 'var(--border-color)';
+                desc.innerHTML = 'Mở Camera điện thoại hoặc Zalo quét mã để <strong>TẢI APP APK (v1.0.14)</strong>:';
+                note.innerHTML = '📥 <strong>Tải App:</strong> Quét bằng Camera hoặc Zalo để tải file cài đặt APK đã ký số chuẩn cho điện thoại Android (Honor / Xiaomi / Samsung).';
+            } else {
+                btnWeb.style.background = 'var(--accent-cyan)';
+                btnWeb.style.color = '#0b0f19';
+                btnWeb.style.borderColor = 'var(--accent-cyan)';
+                btnApk.style.background = 'rgba(255,255,255,0.05)';
+                btnApk.style.color = 'var(--text-main)';
+                btnApk.style.borderColor = 'var(--border-color)';
+                desc.innerHTML = 'Kết nối điện thoại vào <strong>CÙNG MẠNG WI-FI</strong> với máy tính, rồi quét mã:';
+                note.innerHTML = '💡 <strong>Mở Web:</strong> Điện thoại cần kết nối cùng Wi-Fi với máy tính. Hoặc bấm <strong>Sao chép</strong> dán vào Zalo/Chrome trên điện thoại.';
+            }
+
+            const url = getQrTargetUrl(mode);
+            document.getElementById('qrUrlLabel').textContent = url;
+            renderQrCode(url);
+        }
+
+        function renderQrCode(url) {
+            const container = document.getElementById('qrCodeContainer');
+            container.innerHTML = '';
+            try {
+                if (typeof QRCode !== 'undefined') {
+                    qrCodeInstance = new QRCode(container, {
+                        text: url,
+                        width: 176,
+                        height: 176,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                }
+            } catch (e) {
+                console.error("QR Code Error:", e);
+            }
+        }
+
+        function openQrModal() {
+            document.getElementById('qrModal').style.display = 'flex';
+            switchQrMode(currentQrMode || 'web');
         }
 
         function copyPhoneUrl() {
