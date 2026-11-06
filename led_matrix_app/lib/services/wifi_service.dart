@@ -115,7 +115,7 @@ class WifiService {
 
         // Chờ nhận phản hồi ACK (HR, tìm khung 0x48 0x52 có byte +20 == cmd)
         bool ackOk = false;
-        int? errStatus;
+        int errStatus = -1;
         final sw = Stopwatch()..start();
         while (sw.elapsedMilliseconds < 3000) {
           if (incoming.length >= 22) {
@@ -133,7 +133,7 @@ class WifiService {
                 }
               }
             }
-            if (ackOk || errStatus != null) break;
+            if (ackOk || errStatus >= 0) break;
           }
           await Future.delayed(const Duration(milliseconds: 25));
         }
@@ -141,7 +141,7 @@ class WifiService {
         if (ackOk) {
           ackSuccessCount++;
           onLog?.call('  [ACK OK] Card xác nhận gói $cmdHex thành công.');
-        } else if (errStatus != null) {
+        } else if (errStatus >= 0) {
           onLog?.call(
             '  [CẢNH BÁO] Card phản hồi mã 0x${errStatus.toRadixString(16).toUpperCase()} cho gói $cmdHex.',
           );

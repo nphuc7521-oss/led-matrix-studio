@@ -85,6 +85,28 @@ class HuiduProtocol {
     }
   }
 
+  /// Kiểm tra kênh màu R, G, B bật/tắt cho màu đơn sắc
+  static List<bool> _getSolidRgbBits(String c) {
+    switch (c.toLowerCase()) {
+      case 'red':
+        return [true, false, false];
+      case 'green':
+        return [false, true, false];
+      case 'blue':
+        return [false, false, true];
+      case 'yellow':
+        return [true, true, false];
+      case 'cyan':
+        return [false, true, true];
+      case 'magenta':
+        return [true, false, true];
+      case 'white':
+        return [true, true, true];
+      default:
+        return [false, true, false];
+    }
+  }
+
   /// Lấy màu RGB thuần 1-bit cho chế độ Chữ 7 Màu [AB] (1..8) giống hệt Web V18
   static List<int> _getRainbowRgb(
     int preset,
@@ -212,7 +234,7 @@ class HuiduProtocol {
     // Tự động co cỡ chữ vừa khít vùng hiển thị an toàn (giống hệt Web V18 GenerateLedBitmapPages)
     const int scratchW = 512;
     const int scratchH = 96;
-    Uint8List? maskRgba;
+    Uint8List maskRgba = Uint8List(0);
     int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
 
     while (curFontSize >= 8) {
@@ -287,7 +309,7 @@ class HuiduProtocol {
     const int rowStride = rowBytesPerColor * 3; // 24 bytes mỗi hàng (8R + 8G + 8B)
     final outBitmap = Uint8List(rowStride * height);
 
-    if (maxX < minX || maskRgba == null) {
+    if (maxX < minX || maskRgba.isEmpty) {
       return outBitmap;
     }
 
@@ -316,10 +338,10 @@ class HuiduProtocol {
     }
 
     final isRainbow = board.colorfulWords > 0;
-    final baseColor = parseColor(board.color);
-    final bool solidR = baseColor.red > 100;
-    final bool solidG = baseColor.green > 100;
-    final bool solidB = baseColor.blue > 100;
+    final solidBits = _getSolidRgbBits(board.color);
+    final bool solidR = solidBits[0];
+    final bool solidG = solidBits[1];
+    final bool solidB = solidBits[2];
 
     for (int ty = 0; ty < tightH; ty++) {
       final int py = destY + ty;

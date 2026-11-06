@@ -49,7 +49,9 @@ jobs:
       - name: Build Release and Debug APK
         working-directory: ./led_matrix_app
         run: |
-          flutter build apk --release --verbose
+          mkdir -p ../build_output
+          set -o pipefail
+          flutter build apk --release --verbose 2>&1 | tee ../build_output/build.log
 
       - name: Sign Release APK with apksigner (V1 + V2 + V3)
         run: |
@@ -80,6 +82,7 @@ jobs:
           path: ./build_output/*.apk
 
       - name: Create Direct Download Release
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
@@ -89,5 +92,6 @@ jobs:
           files: |
             ./build_output/HD2020_LED_Studio_Honor.apk
             ./build_output/HD2020_LED_Studio_Debug.apk
+            ./build_output/build.log
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
