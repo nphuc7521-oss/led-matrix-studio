@@ -17,8 +17,6 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import androidx.annotation.NonNull
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -36,18 +34,20 @@ class MainActivity: FlutterActivity() {
 
     private fun requestWifiPermissionsIfNeeded() {
         try {
-            val perms = mutableListOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-            if (Build.VERSION.SDK_INT >= 33) {
-                perms.add("android.permission.NEARBY_WIFI_DEVICES")
-            }
-            val missing = perms.filter {
-                ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-            }
-            if (missing.isNotEmpty()) {
-                ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1001)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val perms = mutableListOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+                if (Build.VERSION.SDK_INT >= 33) {
+                    perms.add("android.permission.NEARBY_WIFI_DEVICES")
+                }
+                val missing = perms.filter {
+                    checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+                }
+                if (missing.isNotEmpty()) {
+                    requestPermissions(missing.toTypedArray(), 1001)
+                }
             }
         } catch (_: Exception) {}
     }

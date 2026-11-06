@@ -219,11 +219,11 @@ class HuiduProtocol {
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(
         recorder,
-        const Rect.fromLTWH(0, 0, scratchW.toDouble(), scratchH.toDouble()),
+        const Rect.fromLTWH(0, 0, 512.0, 96.0),
       );
 
       canvas.drawRect(
-        const Rect.fromLTWH(0, 0, scratchW.toDouble(), scratchH.toDouble()),
+        const Rect.fromLTWH(0, 0, 512.0, 96.0),
         Paint()..color = const Color(0xFF000000),
       );
 

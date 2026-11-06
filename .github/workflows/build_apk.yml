@@ -27,6 +27,12 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Cache Permanent Signing Keystore
+        uses: actions/cache@v4
+        with:
+          path: release.jks
+          key: hd2020-ledstudio-permanent-keystore-v1
+
       - name: Recreate Clean Android Project
         working-directory: ./led_matrix_app
         run: |
@@ -35,14 +41,6 @@ jobs:
           cp android_custom/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/ledstudio/led_matrix_app
           cp android_custom/MainActivity.kt android/app/src/main/kotlin/com/ledstudio/led_matrix_app/MainActivity.kt
-          # Doi applicationId sang com.ledstudio.hd2020v18 de khong bao gio xung dot chu ky voi ban cu tren Xiaomi/Honor
-          if [ -f android/app/build.gradle ]; then
-            sed -i 's/applicationId = "com.ledstudio.led_matrix_app"/applicationId = "com.ledstudio.hd2020v18"/g' android/app/build.gradle
-            sed -i 's/applicationId "com.ledstudio.led_matrix_app"/applicationId "com.ledstudio.hd2020v18"/g' android/app/build.gradle
-          fi
-          if [ -f android/app/build.gradle.kts ]; then
-            sed -i 's/applicationId = "com.ledstudio.led_matrix_app"/applicationId = "com.ledstudio.hd2020v18"/g' android/app/build.gradle.kts
-          fi
 
       - name: Install Dependencies
         working-directory: ./led_matrix_app
@@ -60,8 +58,10 @@ jobs:
           cp ./led_matrix_app/build/app/outputs/flutter-apk/app-release.apk ./build_output/HD2020_LED_Studio_Honor.apk
           cp ./led_matrix_app/build/app/outputs/flutter-apk/app-debug.apk ./build_output/HD2020_LED_Studio_Debug.apk
 
-          # Generate signing keystore
-          keytool -genkey -v -keystore release.jks -alias ledstudio -storepass android123 -keypass android123 -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=HD2020 Studio,OU=Mobile,O=LED Studio,L=Hanoi,ST=HN,C=VN"
+          # Generate signing keystore only if not restored from cache
+          if [ ! -f release.jks ]; then
+            keytool -genkey -v -keystore release.jks -alias ledstudio -storepass android123 -keypass android123 -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=HD2020 Studio,OU=Mobile,O=LED Studio,L=Hanoi,ST=HN,C=VN"
+          fi
 
           # Find apksigner in Android build tools
           APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -V | tail -n 1)
