@@ -1,4 +1,4 @@
-package com.ledstudio.hd2020
+package com.ledstudio.led_matrix_app
 
 import android.content.Context
 import android.net.ConnectivityManager
