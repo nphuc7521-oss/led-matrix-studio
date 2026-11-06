@@ -40,20 +40,40 @@ jobs:
         working-directory: ./led_matrix_app
         run: flutter pub get
 
-      - name: Build Release APK
+      - name: Build Release and Debug APK
         working-directory: ./led_matrix_app
-        run: flutter build apk --release --verbose
+        run: |
+          flutter build apk --release --verbose
+          flutter build apk --debug --verbose
 
-      - name: Prepare Output
+      - name: Sign Release APK with apksigner (V1 + V2 + V3)
         run: |
           mkdir -p build_output
           cp ./led_matrix_app/build/app/outputs/flutter-apk/app-release.apk ./build_output/HD2020_LED_Studio_Honor.apk
+          cp ./led_matrix_app/build/app/outputs/flutter-apk/app-debug.apk ./build_output/HD2020_LED_Studio_Debug.apk
+
+          # Generate signing keystore
+          keytool -genkey -v -keystore release.jks -alias ledstudio -storepass android123 -keypass android123 -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=HD2020 Studio,OU=Mobile,O=LED Studio,L=Hanoi,ST=HN,C=VN"
+
+          # Find apksigner in Android build tools
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -V | tail -n 1)
+          echo "Found apksigner at: $APKSIGNER"
+
+          # Sign APK with v1 (JAR signing), v2, and v3
+          $APKSIGNER sign --ks release.jks --ks-pass pass:android123 --ks-key-alias ledstudio --key-pass pass:android123 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true ./build_output/HD2020_LED_Studio_Honor.apk
+
+          # Verify signature
+          echo "=== VERIFYING RELEASE APK SIGNATURE ==="
+          $APKSIGNER verify --verbose ./build_output/HD2020_LED_Studio_Honor.apk
+
+          echo "=== VERIFYING DEBUG APK SIGNATURE ==="
+          $APKSIGNER verify --verbose ./build_output/HD2020_LED_Studio_Debug.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HD2020_LED_Studio_Honor_APK
-          path: ./build_output/HD2020_LED_Studio_Honor.apk
+          name: HD2020_LED_Studio_APKs
+          path: ./build_output/*.apk
 
       - name: Create Direct Download Release
         uses: softprops/action-gh-release@v2
@@ -62,6 +82,8 @@ jobs:
           name: HD2020 LED Studio Mobile v1.0.${{ github.run_number }}
           draft: false
           prerelease: false
-          files: ./build_output/HD2020_LED_Studio_Honor.apk
+          files: |
+            ./build_output/HD2020_LED_Studio_Honor.apk
+            ./build_output/HD2020_LED_Studio_Debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
