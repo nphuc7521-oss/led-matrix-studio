@@ -12,7 +12,7 @@ class SyncController extends ChangeNotifier {
   String currentConnectedWifi = '';
   double progress = 0.0;
   List<String> logs = [
-    '[KHỞI ĐỘNG] HD2020 LED Studio Pro sẵn sàng.',
+    '[KHỞI ĐỘNG] HD2020 LED Studio V18 Pro sẵn sàng.',
     'Hỗ trợ điều khiển 3 bảng LED ma trận HUB75 64x32 độc lập.'
   ];
 
@@ -29,7 +29,7 @@ class SyncController extends ChangeNotifier {
   }
 
   void _startWifiChecker() {
-    _wifiCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+    _wifiCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       final ssid = await WifiService.getCurrentWifiSsid();
       if (ssid != currentConnectedWifi) {
         currentConnectedWifi = ssid;
@@ -112,31 +112,37 @@ class SyncController extends ChangeNotifier {
     addLog('[ĐÃ XÓA NHẬT KÝ] Sẵn sàng điều khiển.');
   }
 
-  /// Nạp trực tiếp cho 1 bảng cụ thể (Đang chọn hoặc chỉ định)
+  /// Mở nhanh cài đặt Wi-Fi của máy
+  Future<void> openSystemWifiPanel() async {
+    await WifiService.openWifiSettings();
+  }
+
+  /// Nạp trực tiếp cho 1 bảng đang chọn (Tự động chuyển sang Wi-Fi của bảng đó nếu cần)
   Future<bool> syncCurrentBoardDirect() async {
     if (isSyncing) return false;
     isSyncing = true;
     final board = currentBoard;
     addLog('==============================================');
-    addLog('>>> [NẠP TRỰC TIẾP] ${board.name} (${board.ssid})...');
-    addLog('    Nội dung: "${board.text}" | Chữ: ${board.color.toUpperCase()} | Font: ${board.fontSize}px');
+    addLog('>>> [NẠP RIÊNG] ${board.name} (SSID: ${board.ssid})...');
+    addLog(
+      '    Nội dung: "${board.text}" | Chữ: ${board.colorfulWords > 0 ? "7 Màu [AB]" : board.color.toUpperCase()} | Viền: ${board.borderStyle > 0 ? "Mẫu ${board.borderStyle}" : "Tắt"}',
+    );
 
     try {
-      addLog('  [RENDER] Đang kết xuất hình ảnh chữ Tiếng Việt sang 3 Plane RGB...');
+      addLog('  [RENDER] Đang kết xuất hình ảnh chữ Tiếng Việt chuẩn HDSDK...');
       final packets = await HuiduProtocol.generateBoardPackets(board);
 
-      final sent = await WifiService.sendPacketsToBoard(
-        ip: board.ip,
-        port: board.port,
+      final sent = await WifiService.updateSingleBoard(
+        board: board,
         packets: packets,
-        onLog: (l) => addLog(l),
+        onStatus: (l) => addLog(l),
+        allowFallbackToCurrentWifi: true,
       );
 
       if (sent) {
-        addLog('===> [THÀNH CÔNG] ${board.name} đã hiển thị chữ mới thành công!');
+        addLog('===> [THÀNH CÔNG] ${board.name} đã hiển thị chữ "${board.text}"!');
       } else {
-        addLog('[LỖI] Không thể gửi tới ${board.ip}:${board.port}.');
-        addLog('  * Gợi ý: Hãy kiểm tra chắc chắn điện thoại đã kết nối Wi-Fi "${board.ssid}"!');
+        addLog('[HƯỚNG DẪN] Hãy kết nối Wi-Fi "${board.ssid}" (Mật khẩu: 88888888) rồi bấm nạp lại!');
       }
 
       isSyncing = false;
@@ -150,7 +156,7 @@ class SyncController extends ChangeNotifier {
     }
   }
 
-  /// Nạp tuần tự cho cả 3 bảng LED (Có đổi Wi-Fi giữa các card)
+  /// Nạp tuần tự cho cả 3 bảng LED (Có đổi Wi-Fi tự động giữa các card)
   Future<bool> syncAllBoards() async {
     if (isSyncing) return false;
     isSyncing = true;
@@ -165,7 +171,9 @@ class SyncController extends ChangeNotifier {
       final board = boards[i];
       addLog('----------------------------------------------');
       addLog('>>> [${i + 1}/$total] NẠP ${board.name} (SSID: ${board.ssid})...');
-      addLog('    Chữ: "${board.text}" | Hiệu ứng: ${board.effect} | Viền: Mẫu ${board.borderStyle}');
+      addLog(
+        '    Chữ: "${board.text}" | Hiệu ứng: ${board.effect} | Viền: ${board.borderStyle > 0 ? "Mẫu ${board.borderStyle}" : "Tắt"}',
+      );
 
       try {
         final packets = await HuiduProtocol.generateBoardPackets(board);
@@ -176,13 +184,14 @@ class SyncController extends ChangeNotifier {
           onStatus: (msg) {
             addLog(msg);
           },
+          allowFallbackToCurrentWifi: false,
         );
 
         if (success) {
           successCount++;
-          addLog('===> [XONG BẢNG ${i + 1}] ${board.name} đã nhận dữ liệu!');
+          addLog('===> [XONG BẢNG ${i + 1}] ${board.name} đã hiển thị chữ "${board.text}"!');
         } else {
-          addLog('[CẢNH BÁO] Không thể nạp ${board.name}.');
+          addLog('[CẢNH BÁO] Chưa nạp được ${board.name} (${board.ssid}).');
         }
       } catch (e) {
         addLog('  [LỖI BẢNG ${i + 1}] $e');
@@ -190,7 +199,7 @@ class SyncController extends ChangeNotifier {
 
       progress = (i + 1) / total;
       notifyListeners();
-      await Future.delayed(const Duration(milliseconds: 600));
+      await Future.delayed(const Duration(milliseconds: 800));
     }
 
     isSyncing = false;
@@ -200,7 +209,7 @@ class SyncController extends ChangeNotifier {
     } else {
       addLog('=== [ĐỒNG BỘ XONG] Thành công $successCount/$total bảng. ===');
       if (successCount < total) {
-        addLog('💡 Mẹo: Bạn có thể chọn từng tab bảng và bấm "NẠP RIÊNG BẢNG NÀY" sau khi kết nối Wi-Fi tương ứng.');
+        addLog('💡 Mẹo: Nếu điện thoại chặn tự chuyển Wi-Fi, bạn có thể bấm nút Wi-Fi trên góc hoặc chọn từng Bảng -> Kết nối Wi-Fi bảng đó -> Bấm "NẠP RIÊNG BẢNG NÀY".');
       }
     }
     notifyListeners();

@@ -35,6 +35,14 @@ jobs:
           cp android_custom/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/ledstudio/led_matrix_app
           cp android_custom/MainActivity.kt android/app/src/main/kotlin/com/ledstudio/led_matrix_app/MainActivity.kt
+          # Doi applicationId sang com.ledstudio.hd2020v18 de khong bao gio xung dot chu ky voi ban cu tren Xiaomi/Honor
+          if [ -f android/app/build.gradle ]; then
+            sed -i 's/applicationId = "com.ledstudio.led_matrix_app"/applicationId = "com.ledstudio.hd2020v18"/g' android/app/build.gradle
+            sed -i 's/applicationId "com.ledstudio.led_matrix_app"/applicationId "com.ledstudio.hd2020v18"/g' android/app/build.gradle
+          fi
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/applicationId = "com.ledstudio.led_matrix_app"/applicationId = "com.ledstudio.hd2020v18"/g' android/app/build.gradle.kts
+          fi
 
       - name: Install Dependencies
         working-directory: ./led_matrix_app
@@ -65,9 +73,6 @@ jobs:
           # Verify signature
           echo "=== VERIFYING RELEASE APK SIGNATURE ==="
           $APKSIGNER verify --verbose ./build_output/HD2020_LED_Studio_Honor.apk
-
-          echo "=== VERIFYING DEBUG APK SIGNATURE ==="
-          $APKSIGNER verify --verbose ./build_output/HD2020_LED_Studio_Debug.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

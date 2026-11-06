@@ -153,6 +153,14 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         actions: [
           IconButton(
+            tooltip: 'Chọn nhanh Wi-Fi Card LED',
+            icon: const Icon(Icons.wifi_find, color: Color(0xFF06B6D4)),
+            onPressed: () {
+              syncController.openSystemWifiPanel();
+            },
+          ),
+          IconButton(
+            tooltip: 'Cài đặt SSID & Mật khẩu',
             icon: const Icon(Icons.settings, color: Color(0xFF94A3B8)),
             onPressed: () {
               Navigator.push(
@@ -972,13 +980,16 @@ class _HomeScreenState extends State<HomeScreen>
           ),
 
           // Badge ClearType chuẩn 201
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.check_circle, size: 12, color: Color(0xFF10B981)),
-              const SizedBox(width: 4),
-              const Text(
-                'Do not clear (Clear=201) giúp chữ chạy mượt mà không chớp đen',
-                style: TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+              Icon(Icons.check_circle, size: 12, color: Color(0xFF10B981)),
+              SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Do not clear (Clear=201) giúp chữ chạy mượt không chớp đen',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -1231,20 +1242,23 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ],
                       )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.bolt, size: 18),
-                          SizedBox(width: 6),
-                          Text(
-                            '⚡ GỬI ĐỒNG BỘ CẢ 3 BẢNG (AUTO SYNC)',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                              letterSpacing: 0.5,
+                    : const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.bolt, size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              '⚡ GỬI ĐỒNG BỘ CẢ 3 BẢNG (AUTO SYNC)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12.5,
+                                letterSpacing: 0.3,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
               ),
             ),
@@ -1268,19 +1282,22 @@ class _HomeScreenState extends State<HomeScreen>
                     : () async {
                         await sync.syncCurrentBoardDirect();
                       },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.wifi_tethering, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      '📡 NẠP RIÊNG ${b.name} (${b.ssid})',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.wifi_tethering, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        '📡 NẠP RIÊNG ${b.name} (${b.ssid})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

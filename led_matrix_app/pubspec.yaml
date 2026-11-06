@@ -1,7 +1,7 @@
 name: led_matrix_app
 description: "Ung dung dieu khien dong bo 3 bang LED Ma Tran HD-WF2 qua Wi-Fi tren iOS"
 publish_to: "none"
-version: 1.0.0+1
+version: 1.8.0+18
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
