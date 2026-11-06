@@ -68,12 +68,11 @@ class WifiService {
       socket = await Socket.connect(ip, port, timeout: const Duration(seconds: 4));
       socket.setOption(SocketOption.tcpNoDelay, true);
 
-      // Đọc ACK bất đồng bộ
-      final ackStream = StreamController<List<int>>();
+      // Lưu trữ dữ liệu phản hồi từ card liên tục qua 1 listener duy nhất
+      final incoming = <int>[];
       final sub = socket.listen(
-        (data) => ackStream.add(data),
+        (data) => incoming.addAll(data),
         onError: (e) => print('Socket listen error: $e'),
-        cancelOnError: true,
       );
 
       for (int i = 0; i < packets.length; i++) {
@@ -81,13 +80,27 @@ class WifiService {
         final cmd = pkt[6];
         final cmdHex = '0x${cmd.toRadixString(16).padLeft(2, '0').toUpperCase()}';
 
+        incoming.clear();
         onLog?.call('  [GỬI] Gói tin $cmdHex (Seq ${i + 1}/${packets.length})...');
         socket.add(pkt);
         await socket.flush();
 
-        // Chờ nhận phản hồi ACK từ card HD-WF2
-        final ackReceived = await _waitForAck(ackStream.stream, cmd);
-        if (ackReceived) {
+        // Chờ nhận phản hồi ACK (HR, byte 20 == cmd, byte 21 == 0x00)
+        bool ackOk = false;
+        final sw = Stopwatch()..start();
+        while (sw.elapsedMilliseconds < 1500) {
+          if (incoming.length >= 22 && incoming[0] == 0x48 && incoming[1] == 0x52) {
+            final replyCmd = incoming[20];
+            final status = incoming[21];
+            if (replyCmd == cmd && status == 0x00) {
+              ackOk = true;
+              break;
+            }
+          }
+          await Future.delayed(const Duration(milliseconds: 30));
+        }
+
+        if (ackOk) {
           onLog?.call('  [ACK OK] Card đã xác nhận gói $cmdHex thành công.');
         } else {
           onLog?.call('  [ACK TIẾP TỤC] Gói $cmdHex đã phát.');
@@ -98,7 +111,6 @@ class WifiService {
 
       await Future.delayed(const Duration(milliseconds: 300));
       await sub.cancel();
-      await ackStream.close();
       return true;
     } catch (e) {
       onLog?.call('  [LỖI SOCKET] Không thể giao tiếp tại $ip:$port ($e)');
@@ -107,23 +119,6 @@ class WifiService {
       try {
         await socket?.close();
       } catch (_) {}
-    }
-  }
-
-  /// Đọc phản hồi ACK 'HR' từ card
-  static Future<bool> _waitForAck(Stream<List<int>> stream, int expectedCmd) async {
-    try {
-      final data = await stream.first.timeout(const Duration(milliseconds: 1500));
-      if (data.length >= 22 && data[0] == 0x48 && data[1] == 0x52) {
-        final replyCmd = data[20];
-        final status = data[21];
-        if (replyCmd == expectedCmd && status == 0x00) {
-          return true;
-        }
-      }
-      return false;
-    } catch (_) {
-      return false;
     }
   }
 
