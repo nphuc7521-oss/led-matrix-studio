@@ -7,16 +7,22 @@ class LedBoard {
   int port;
   String? guid;
 
-  // Thuộc tính nội dung & hiển thị riêng của từng bảng
+  // Thuộc tính hiển thị & văn bản chuẩn Studio V18
   String text;
-  String color; // 'red', 'green', 'blue', 'yellow', 'cyan', 'magenta', 'white'
-  int fontSize;
-  int effect; // 1: Chạy trái, 2: Chạy phải, 37: Cuộn lên, 36: Cuộn xuống, 39: Kéo giãn, 0: Đứng yên
-  int speed;
-  int stayTime;
-  int colorfulWords; // 0: Đơn sắc, 1: 7 Màu Gradient [AB]
-  int borderStyle;   // 0: Tắt viền, 1..7: Mẫu viền chạy 001..007
-  int borderSpeed;
+  String color; // 'green', 'red', 'yellow', 'blue', 'cyan', 'magenta', 'white'
+  String fontFamily; // 'Arial', 'Tahoma', 'Segoe UI', 'Consolas', 'Times New Roman'
+  int fontSize; // 10, 12, 14, 16, 18, 20
+  bool bold;
+  bool italic;
+  bool underline;
+  String alignH; // 'left', 'center', 'right'
+  String alignV; // 'top', 'center', 'bottom'
+  int effect; // 1: Trái, 2: Phải, 37: Lên, 36: Xuống, 38: Dọc, 39: Ngang, 11: Mở giữa, 28: Tuyết, 34: Nhấp nháy, 202: Liên tục, 0: Tĩnh
+  int speed; // 1..20
+  int stayTime; // 1..10 (giây)
+  int colorfulWords; // 0: Đơn sắc, 1..8: 7 Màu Gradient [AB]
+  int borderStyle; // 0: Tắt viền, 1..7: Mẫu viền chạy 001..007
+  int borderSpeed; // 2: Nhanh, 5: Chuẩn, 8: Chậm
   String borderMode; // 'Clockwise' hoặc 'Anti-clockwise'
 
   LedBoard({
@@ -28,13 +34,19 @@ class LedBoard {
     this.port = 6101,
     this.guid,
     this.text = '',
-    this.color = 'red',
+    this.color = 'green',
+    this.fontFamily = 'Arial',
     this.fontSize = 16,
+    this.bold = true,
+    this.italic = false,
+    this.underline = false,
+    this.alignH = 'center',
+    this.alignV = 'center',
     this.effect = 1,
     this.speed = 10,
     this.stayTime = 3,
-    this.colorfulWords = 0,
-    this.borderStyle = 1,
+    this.colorfulWords = 1, // Mặc định 7 màu [AB] rực rỡ như Web V18
+    this.borderStyle = 1, // Mặc định bật Viền mẫu 001
     this.borderSpeed = 5,
     this.borderMode = 'Clockwise',
   });
@@ -46,10 +58,11 @@ class LedBoard {
           ssid: 'WF2_f412fab2b75c',
           guid: '7100ff00-b2fa-0d00-2000-014e4300001a',
           text: 'PHÚC',
-          color: 'red',
-          colorfulWords: 1, // 7 Màu [AB]
+          color: 'green',
+          colorfulWords: 1,
           effect: 1, // Chạy trái
           borderStyle: 1,
+          bold: true,
         ),
         LedBoard(
           id: '2',
@@ -57,10 +70,11 @@ class LedBoard {
           ssid: 'WF2_1051db45b870',
           guid: '7100ff00-b870-0d00-2000-014e4300001b',
           text: 'NGUYỄN',
-          color: 'green',
+          color: 'yellow',
           colorfulWords: 1,
           effect: 2, // Chạy phải
           borderStyle: 1,
+          bold: true,
         ),
         LedBoard(
           id: '3',
@@ -68,10 +82,11 @@ class LedBoard {
           ssid: 'WF2_f412fab177c8',
           guid: '7100ff00-77c8-0d00-2000-014e4300001c',
           text: 'HOÀNG',
-          color: 'yellow',
+          color: 'red',
           colorfulWords: 1,
           effect: 37, // Cuộn lên
           borderStyle: 1,
+          bold: true,
         ),
       ];
 }

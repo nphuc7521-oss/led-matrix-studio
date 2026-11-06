@@ -80,6 +80,8 @@ jobs:
           import android.net.Network
           import android.net.NetworkCapabilities
           import android.net.NetworkRequest
+          import android.net.wifi.WifiInfo
+          import android.net.wifi.WifiManager
           import android.net.wifi.WifiNetworkSpecifier
           import android.os.Build
           import androidx.annotation.NonNull
@@ -98,6 +100,14 @@ jobs:
 
                   MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
                       when (call.method) {
+                          "bindCurrentWifi" -> {
+                              val ok = bindCurrentWifi()
+                              result.success(ok)
+                          }
+                          "getCurrentWifiSsid" -> {
+                              val ssid = getCurrentWifiSsid()
+                              result.success(ssid)
+                          }
                           "connectWifi" -> {
                               val ssid = call.argument<String>("ssid") ?: ""
                               val password = call.argument<String>("password") ?: "88888888"
@@ -112,7 +122,48 @@ jobs:
                   }
               }
 
+              private fun bindCurrentWifi(): Boolean {
+                  try {
+                      val cm = connectivityManager ?: return false
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                          for (network in cm.allNetworks) {
+                              val caps = cm.getNetworkCapabilities(network)
+                              if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                                  val bound = cm.bindProcessToNetwork(network)
+                                  android.util.Log.d("MainActivity", "bindProcessToNetwork to active Wi-Fi: $bound")
+                                  return bound
+                              }
+                          }
+                      }
+                  } catch (e: Exception) {
+                      android.util.Log.e("MainActivity", "bindCurrentWifi error: ${e.message}")
+                  }
+                  return false
+              }
+
+              private fun getCurrentWifiSsid(): String {
+                  try {
+                      val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+                      val info = wifiManager.connectionInfo
+                      var ssid = info.ssid ?: ""
+                      if (ssid.startsWith("\"") && ssid.endsWith("\"") && ssid.length > 2) {
+                          ssid = ssid.substring(1, ssid.length - 1)
+                      }
+                      if (ssid == "<unknown ssid>") ssid = ""
+                      return ssid
+                  } catch (e: Exception) {
+                      return ""
+                  }
+              }
+
               private fun connectToWifi(ssid: String, pass: String, result: MethodChannel.Result) {
+                  val currentSsid = getCurrentWifiSsid()
+                  if (currentSsid.isNotEmpty() && currentSsid.equals(ssid, ignoreCase = true)) {
+                      bindCurrentWifi()
+                      result.success(true)
+                      return
+                  }
+
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                       try {
                           disconnectWifi()
@@ -141,6 +192,7 @@ jobs:
 
                               override fun onUnavailable() {
                                   super.onUnavailable()
+                                  bindCurrentWifi()
                                   if (!hasResponded) {
                                       hasResponded = true
                                       runOnUiThread { result.success(false) }
@@ -149,7 +201,6 @@ jobs:
 
                               override fun onLost(network: Network) {
                                   super.onLost(network)
-                                  connectivityManager?.bindProcessToNetwork(null)
                               }
                           }
 
@@ -157,9 +208,11 @@ jobs:
                           connectivityManager?.requestNetwork(request, callback, 10000)
 
                       } catch (e: Exception) {
+                          bindCurrentWifi()
                           result.error("WIFI_ERR", e.message, null)
                       }
                   } else {
+                      bindCurrentWifi()
                       result.success(true)
                   }
               }
@@ -168,7 +221,6 @@ jobs:
                   try {
                       currentCallback?.let {
                           connectivityManager?.unregisterNetworkCallback(it)
-                          connectivityManager?.bindProcessToNetwork(null)
                           currentCallback = null
                       }
                   } catch (_: Exception) {}

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/board.dart';
@@ -11,18 +12,33 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   late TextEditingController _textController;
   late AnimationController _animController;
+  final ScrollController _logScrollController = ScrollController();
+  bool _isSimPaused = false;
 
   final List<Map<String, dynamic>> _colors = [
-    {'name': 'Đỏ', 'id': 'red', 'color': const Color(0xFFFF0000)},
-    {'name': 'Xanh Lá', 'id': 'green', 'color': const Color(0xFF00FF00)},
-    {'name': 'Xanh Dương', 'id': 'blue', 'color': const Color(0xFF0088FF)},
-    {'name': 'Vàng', 'id': 'yellow', 'color': const Color(0xFFFFFF00)},
-    {'name': 'Xanh Lơ', 'id': 'cyan', 'color': const Color(0xFF00FFFF)},
-    {'name': 'Hồng Tím', 'id': 'magenta', 'color': const Color(0xFFFF00FF)},
+    {'name': 'Xanh Lá', 'id': 'green', 'color': const Color(0xFF00E676)},
+    {'name': 'Đỏ', 'id': 'red', 'color': const Color(0xFFFF3333)},
+    {'name': 'Vàng', 'id': 'yellow', 'color': const Color(0xFFFFEB3B)},
+    {'name': 'Xanh Dương', 'id': 'blue', 'color': const Color(0xFF2979FF)},
+    {'name': 'Xanh Ngọc', 'id': 'cyan', 'color': const Color(0xFF00E5FF)},
+    {'name': 'Hồng Tím', 'id': 'magenta', 'color': const Color(0xFFF50057)},
     {'name': 'Trắng', 'id': 'white', 'color': const Color(0xFFFFFFFF)},
+  ];
+
+  final List<Map<String, dynamic>> _rainbowPresets = [
+    {'id': 0, 'name': '🚫 Đơn sắc'},
+    {'id': 1, 'name': '🌈 Cầu Vồng 1'},
+    {'id': 2, 'name': '🌈 Cầu Vồng 2'},
+    {'id': 3, 'name': '🌈 Cầu Vồng 3'},
+    {'id': 4, 'name': '🔥 Lửa Đỏ Vàng'},
+    {'id': 5, 'name': '🌊 Đại Dương'},
+    {'id': 6, 'name': '🌆 Hoàng Hôn'},
+    {'id': 7, 'name': '⚡ Neon Sóng'},
+    {'id': 8, 'name': '🔮 Cyberpunk'},
   ];
 
   final List<Map<String, dynamic>> _effects = [
@@ -30,25 +46,41 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     {'name': '➡ Chạy sang phải (Move Right)', 'id': 2},
     {'name': '⬆ Cuộn lên trên (Pull Up)', 'id': 37},
     {'name': '⬇ Cuộn xuống dưới (Pull Down)', 'id': 36},
-    {'name': '↔ Kéo giãn sang hai bên (Stretch)', 'id': 39},
+    {'name': '↕ Kéo giãn dọc 2 chiều', 'id': 38},
+    {'name': '↔ Kéo giãn ngang 2 chiều', 'id': 39},
+    {'name': '↔ Mở từ giữa ra 2 bên', 'id': 11},
+    {'name': '❄ Tuyết rơi (Snow)', 'id': 28},
+    {'name': '✨ Nhấp nháy (Twinkle)', 'id': 34},
+    {'name': '⏩ Chạy liên tục không dừng', 'id': 202},
     {'name': '⏹ Đứng yên tĩnh (Immediate)', 'id': 0},
   ];
 
   final List<Map<String, dynamic>> _borders = [
-    {'name': 'Tắt viền', 'id': 0},
-    {'name': 'Mẫu 001 (Chấm đơn)', 'id': 1},
-    {'name': 'Mẫu 002 (Hai chấm)', 'id': 2},
-    {'name': 'Mẫu 003 (Đoạn gạch)', 'id': 3},
-    {'name': 'Mẫu 004 (Sao lấp lánh)', 'id': 4},
-    {'name': 'Mẫu 005 (Đường liền)', 'id': 5},
+    {'name': 'Mẫu 001 (Chấm bi Đỏ - Vàng - Lục)', 'id': 1},
+    {'name': 'Mẫu 002 (Sao lấp lánh Trắng - Xanh)', 'id': 2},
+    {'name': 'Mẫu 003 (Sóng 7 màu liên tục)', 'id': 3},
+    {'name': 'Mẫu 004 (Viền đa sắc Đỏ - Lục - Lam)', 'id': 4},
+    {'name': 'Mẫu 005 (Kim cương Tím - Xanh ngọc)', 'id': 5},
+    {'name': 'Mẫu 006 (Đường gạch neon Vàng - Đỏ)', 'id': 6},
+    {'name': 'Mẫu 007 (Vệt sao băng Xanh - Vàng)', 'id': 7},
   ];
+
+  final List<String> _fontFamilies = [
+    'Arial',
+    'Tahoma',
+    'Segoe UI',
+    'Consolas',
+    'Times New Roman',
+  ];
+
+  final List<int> _fontSizes = [10, 12, 14, 16, 18, 20];
 
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 4),
     )..repeat();
 
     final controller = context.read<SyncController>();
@@ -59,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void dispose() {
     _textController.dispose();
     _animController.dispose();
+    _logScrollController.dispose();
     super.dispose();
   }
 
@@ -75,531 +108,876 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _syncTextFromBoard(currentBoard);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF0B0F19),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
-        elevation: 3,
-        centerTitle: true,
+        backgroundColor: const Color(0xFF111827),
+        elevation: 2,
         title: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.flash_on, color: Colors.cyanAccent, size: 20),
-            const SizedBox(width: 6),
-            const Text(
-              'HD2020 LED STUDIO PRO',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 15,
-                letterSpacing: 1.2,
-                color: Colors.cyanAccent,
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF06B6D4).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: const Icon(Icons.flash_on, color: Color(0xFF06B6D4), size: 18),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'HD2020 LED STUDIO PRO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    letterSpacing: 0.8,
+                    color: Color(0xFFF8FAFC),
+                  ),
+                ),
+                Text(
+                  syncController.currentConnectedWifi.isNotEmpty
+                      ? '🟢 Wi-Fi: ${syncController.currentConnectedWifi}'
+                      : '📡 Sẵn sàng điều khiển Dark Studio V18',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: syncController.currentConnectedWifi.isNotEmpty
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.cyanAccent),
-            tooltip: 'Cài đặt kết nối WiFi',
+            icon: const Icon(Icons.settings, color: Color(0xFF94A3B8)),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
               );
             },
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 1. Tab Chọn 3 Bảng
-            _buildBoardTabs(syncController),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 1. THANH CHỌN BẢNG LED (3 TABS BẢNG 1, 2, 3)
+                  _buildBoardSelector(syncController),
 
-            const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-            // 2. Mô phỏng màn hình LED Matrix 64x32
-            _buildLedMatrixSimulator(currentBoard),
+                  // 2. MÔ PHỎNG MÀN HÌNH LED 64x32
+                  _buildSimulatorSection(currentBoard),
 
-            const SizedBox(height: 14),
+                  const SizedBox(height: 14),
 
-            // 3. Khung Nhập Chữ Tiếng Việt
-            _buildTextInputCard(syncController, currentBoard),
+                  // 3. SOẠN THẢO VĂN BẢN (TYPOGRAPHY & TEXT)
+                  _buildTypographySection(syncController, currentBoard),
 
-            const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
-            // 4. Chọn Màu Sắc & Nút [AB] 7 Màu Cầu Vồng
-            _buildColorSection(syncController, currentBoard),
+                  // 4. HIỆU ỨNG CHUYỂN ĐỘNG & TỐC ĐỘ (MOTION)
+                  _buildMotionSection(syncController, currentBoard),
 
-            const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
-            // 5. Hiệu Ứng Di Chuyển & Tốc Độ
-            _buildEffectSection(syncController, currentBoard),
+                  // 5. VIỀN CHẠY ĐỘC LẬP (RUN BORDER)
+                  _buildRunBorderSection(syncController, currentBoard),
 
-            const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
-            // 6. Viền Chạy Độc Lập (Run Border)
-            _buildBorderSection(syncController, currentBoard),
+                  // 6. NHẬT KÝ ĐIỀU KHIỂN (CONSOLE LOGS)
+                  _buildLogsSection(syncController),
 
-            const SizedBox(height: 18),
-
-            // 7. Nút GỬI ĐỒNG BỘ CẢ 3 BẢNG (Sticky/Big Button)
-            _buildSyncAction(syncController),
-
-            const SizedBox(height: 14),
-
-            // 8. Bảng Console Log Nhật Ký Truyền
-            _buildConsoleLogs(syncController),
-
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- 1. TAB CHỌN 3 BẢNG ---
-  Widget _buildBoardTabs(SyncController sync) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.blueGrey.shade800),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Row(
-        children: List.generate(sync.boards.length, (index) {
-          final b = sync.boards[index];
-          final isSelected = sync.currentBoardIndex == index;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                sync.selectBoard(index);
-                _textController.text = sync.boards[index].text;
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.cyanAccent.shade700 : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.cyanAccent.withOpacity(0.3),
-                            blurRadius: 8,
-                            spreadRadius: 1,
-                          )
-                        ]
-                      : null,
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      b.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: isSelected ? Colors.white : Colors.grey.shade400,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      b.text.isEmpty ? '(Trống)' : b.text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isSelected ? Colors.white.withOpacity(0.9) : Colors.cyanAccent.shade200,
-                      ),
-                    ),
-                  ],
-                ),
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
-          );
-        }),
-      ),
-    );
-  }
-
-  // --- 2. MÔ PHỎNG LED 64x32 SIMULATOR ---
-  Widget _buildLedMatrixSimulator(LedBoard b) {
-    Color textColor;
-    switch (b.color.toLowerCase()) {
-      case 'green':
-        textColor = const Color(0xFF00FF00);
-        break;
-      case 'blue':
-        textColor = const Color(0xFF0088FF);
-        break;
-      case 'yellow':
-        textColor = const Color(0xFFFFFF00);
-        break;
-      case 'cyan':
-        textColor = const Color(0xFF00FFFF);
-        break;
-      case 'magenta':
-        textColor = const Color(0xFFFF00FF);
-        break;
-      case 'white':
-        textColor = const Color(0xFFFFFFFF);
-        break;
-      default:
-        textColor = const Color(0xFFFF0000);
-    }
-
-    final hasBorder = b.borderStyle > 0;
-    final isRainbow = b.colorfulWords > 0;
-
-    return Container(
-      height: 110,
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: hasBorder ? Colors.amberAccent.shade400 : Colors.grey.shade800,
-          width: hasBorder ? 2.5 : 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isRainbow ? Colors.purpleAccent : textColor).withOpacity(0.35),
-            blurRadius: 16,
-            spreadRadius: 2,
           ),
+
+          // 7. THANH NẠP STICKY DƯỚI CÙNG
+          _buildBottomStickyBar(syncController, currentBoard),
         ],
       ),
-      child: Stack(
-        children: [
-          // Nền lưới LED matrix chấm li ti
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.15,
-              child: CustomPaint(
-                painter: _LedGridPainter(),
+    );
+  }
+
+  // =========================================================================
+  // 1. THANH CHỌN BẢNG LED
+  // =========================================================================
+  Widget _buildBoardSelector(SyncController sync) {
+    return Row(
+      children: List.generate(sync.boards.length, (idx) {
+        final b = sync.boards[idx];
+        final isSelected = idx == sync.currentBoardIndex;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => sync.selectBoard(idx),
+            child: Container(
+              margin: EdgeInsets.only(right: idx < 2 ? 6 : 0),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF182234) : const Color(0xFF111827),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected ? const Color(0xFF06B6D4) : const Color(0xFF243248),
+                  width: isSelected ? 1.5 : 1,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF06B6D4).withOpacity(0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        )
+                      ]
+                    : [],
               ),
-            ),
-          ),
-          // Chữ hiển thị
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: isRainbow
-                  ? ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [
-                          Colors.red,
-                          Colors.orange,
-                          Colors.yellow,
-                          Colors.green,
-                          Colors.cyan,
-                          Colors.blue,
-                          Colors.purple,
-                        ],
-                      ).createShader(bounds),
-                      child: Text(
-                        b.text.isEmpty ? 'CHƯA NHẬP CHỮ' : b.text,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          fontFamily: 'monospace',
-                          color: Colors.white,
-                          letterSpacing: 2.0,
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected ? const Color(0xFF06B6D4) : const Color(0xFF64748B),
                         ),
                       ),
-                    )
-                  : Text(
-                      b.text.isEmpty ? 'CHƯA NHẬP CHỮ' : b.text,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        fontFamily: 'monospace',
-                        color: textColor,
-                        letterSpacing: 2.0,
-                        shadows: [
-                          Shadow(
-                            color: textColor.withOpacity(0.85),
-                            blurRadius: 10,
-                          ),
-                        ],
+                      const SizedBox(width: 4),
+                      Text(
+                        b.name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? const Color(0xFFF8FAFC) : const Color(0xFF94A3B8),
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    b.ssid.replaceFirst('WF2_', ''),
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      fontFamily: 'Consolas',
+                      color: Color(0xFF64748B),
                     ),
-            ),
-          ),
-          // Nhãn góc hiển thị kích thước
-          Positioned(
-            bottom: 4,
-            right: 8,
-            child: Text(
-              '64x32 HUB75 • ${b.name}',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 10,
-                fontFamily: 'monospace',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    b.text.isEmpty ? '(Trống)' : b.text,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
+        );
+      }),
     );
   }
 
-  // --- 3. KHUNG NHẬP CHỮ ---
-  Widget _buildTextInputCard(SyncController sync, LedBoard b) {
+  // =========================================================================
+  // 2. MÔ PHỎNG MÀN HÌNH LED 64x32
+  // =========================================================================
+  Widget _buildSimulatorSection(LedBoard b) {
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF243248)),
       ),
+      padding: const EdgeInsets.all(12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'NỘI DUNG CHỮ HIỂN THỊ (${b.name})',
-                style: const TextStyle(
-                  color: Colors.cyanAccent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  const Icon(Icons.tv, size: 14, color: Color(0xFF06B6D4)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'MÔ PHỎNG: ${b.name} (64 × 32 px)',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF8FAFC),
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                '${_textController.text.length} ký tự',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isSimPaused = !_isSimPaused;
+                    if (_isSimPaused) {
+                      _animController.stop();
+                    } else {
+                      _animController.repeat();
+                    }
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF182234),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF33435E)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isSimPaused ? Icons.play_arrow : Icons.pause,
+                        size: 12,
+                        color: const Color(0xFF06B6D4),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _isSimPaused ? 'Chạy' : 'Dừng',
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF06B6D4)),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          TextField(
-            controller: _textController,
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-            decoration: InputDecoration(
-              hintText: 'Nhập nội dung hiển thị (hỗ trợ Tiếng Việt)...',
-              hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-              filled: true,
-              fillColor: const Color(0xFF0F172A),
-              border: OutlineInputBorder(
+
+          // KHUNG MÀN HÌNH LED VỚI ỐC VÍT 4 GÓC
+          Center(
+            child: Container(
+              width: 320,
+              height: 160,
+              decoration: BoxDecoration(
+                color: const Color(0xFF06070A),
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
+                border: Border.all(color: const Color(0xFF33435E), width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.6),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              suffixIcon: _textController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.grey),
-                      onPressed: () {
-                        setState(() {
-                          _textController.clear();
-                          sync.updateCurrentBoardText('');
-                        });
-                      },
-                    )
-                  : null,
+              child: Stack(
+                children: [
+                  // 4 Ốc vít ở 4 góc
+                  _buildScrew(top: 4, left: 4),
+                  _buildScrew(top: 4, right: 4),
+                  _buildScrew(bottom: 4, left: 4),
+                  _buildScrew(bottom: 4, right: 4),
+
+                  // Màn hình chấm LED CustomPaint
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: AnimatedBuilder(
+                        animation: _animController,
+                        builder: (context, _) {
+                          return CustomPaint(
+                            painter: LedSimulatorPainter(
+                              board: b,
+                              animProgress: _isSimPaused ? 0.5 : _animController.value,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            onChanged: (val) {
-              setState(() {
-                sync.updateCurrentBoardText(val);
-              });
-            },
+          ),
+
+          const SizedBox(height: 8),
+          // Floating badge tóm tắt
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF182234),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                const Text(
+                  '⚡ 64 × 32',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF06B6D4),
+                  ),
+                ),
+                Text(
+                  'Hiệu ứng: ${_getEffectName(b.effect)}',
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                ),
+                Text(
+                  b.borderStyle > 0 ? 'Viền: BẬT (Mẫu ${b.borderStyle})' : 'Viền: TẮT',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: b.borderStyle > 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // --- 4. CHỌN MÀU & NÚT [AB] ---
-  Widget _buildColorSection(SyncController sync, LedBoard b) {
-    final isRainbow = b.colorfulWords > 0;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(10),
+  Widget _buildScrew({double? top, double? bottom, double? left, double? right}) {
+    return Positioned(
+      top: top,
+      bottom: bottom,
+      left: left,
+      right: right,
+      child: Container(
+        width: 6,
+        height: 6,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF64748B),
+          border: Border.all(color: const Color(0xFF33435E), width: 0.8),
+        ),
       ),
+    );
+  }
+
+  // =========================================================================
+  // 3. SOẠN THẢO VĂN BẢN (TYPOGRAPHY)
+  // =========================================================================
+  Widget _buildTypographySection(SyncController sync, LedBoard b) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF243248)),
+      ),
+      padding: const EdgeInsets.all(12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'MÀU SẮC CHỮ HIỂN THỊ',
-            style: TextStyle(
-              color: Colors.cyanAccent,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
           Row(
             children: [
-              // Nút 7 Màu Gradient [AB]
+              const Icon(Icons.text_fields, size: 14, color: Color(0xFF06B6D4)),
+              const SizedBox(width: 6),
+              Text(
+                'Nội Dung & Kiểu Chữ: ${b.name}',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFF8FAFC),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // HÀNG 1: FONT FAMILY & FONT SIZE & B/I/U
+          Row(
+            children: [
+              // Font Family
               Expanded(
-                flex: 4,
-                child: GestureDetector(
-                  onTap: () {
-                    sync.updateCurrentBoardColor(b.color, isRainbow ? 0 : 1);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Colors.red,
-                          Colors.orange,
-                          Colors.yellow,
-                          Colors.green,
-                          Colors.cyan,
-                          Colors.purple,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isRainbow ? Colors.white : Colors.transparent,
-                        width: 2.5,
-                      ),
-                      boxShadow: isRainbow
-                          ? [
-                              BoxShadow(
-                                color: Colors.purpleAccent.withOpacity(0.5),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          : null,
+                flex: 3,
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF182234),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF243248)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: b.fontFamily,
+                      isExpanded: true,
+                      dropdownColor: const Color(0xFF182234),
+                      style: const TextStyle(fontSize: 11, color: Color(0xFFF8FAFC)),
+                      items: _fontFamilies.map((f) {
+                        return DropdownMenuItem(value: f, child: Text(f));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) sync.updateCurrentBoardFont(fontFamily: val);
+                      },
                     ),
-                    child: Center(
-                      child: Text(
-                        isRainbow ? '✔ 7 MÀU [AB] BẬT' : '✨ 7 MÀU [AB]',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+
+              // Font Size
+              Expanded(
+                flex: 2,
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF182234),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF243248)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: b.fontSize,
+                      isExpanded: true,
+                      dropdownColor: const Color(0xFF182234),
+                      style: const TextStyle(fontSize: 11, color: Color(0xFFF8FAFC)),
+                      items: _fontSizes.map((s) {
+                        return DropdownMenuItem(value: s, child: Text('$s px'));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) sync.updateCurrentBoardFont(fontSize: val);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+
+              // Nút Đậm (B), Nghiêng (I), Gạch Chân (U)
+              _buildToggleBtn(
+                label: 'B',
+                active: b.bold,
+                onTap: () => sync.updateCurrentBoardFont(bold: !b.bold),
+              ),
+              const SizedBox(width: 4),
+              _buildToggleBtn(
+                label: 'I',
+                active: b.italic,
+                onTap: () => sync.updateCurrentBoardFont(italic: !b.italic),
+              ),
+              const SizedBox(width: 4),
+              _buildToggleBtn(
+                label: 'U',
+                active: b.underline,
+                onTap: () => sync.updateCurrentBoardFont(underline: !b.underline),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // HÀNG 2: CĂN LỀ & MÀU CHỮ & NÚT 7 MÀU [AB]
+          Row(
+            children: [
+              // Căn lề trái / giữa / phải
+              _buildAlignBtn(icon: Icons.format_align_left, align: 'left', current: b.alignH, sync: sync),
+              const SizedBox(width: 4),
+              _buildAlignBtn(icon: Icons.format_align_center, align: 'center', current: b.alignH, sync: sync),
+              const SizedBox(width: 4),
+              _buildAlignBtn(icon: Icons.format_align_right, align: 'right', current: b.alignH, sync: sync),
+
+              const SizedBox(width: 8),
+
+              // Nút [AB] 7 MÀU RAINBOW
+              GestureDetector(
+                onTap: () => _showRainbowPicker(context, sync, b),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFFF0000),
+                        Color(0xFFFFFF00),
+                        Color(0xFF00FF00),
+                        Color(0xFF00FFFF),
+                        Color(0xFF0000FF),
+                        Color(0xFFFF00FF),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: b.colorfulWords > 0 ? Colors.white : Colors.transparent,
+                      width: 1.5,
+                    ),
+                    boxShadow: b.colorfulWords > 0
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF06B6D4).withOpacity(0.5),
+                              blurRadius: 6,
+                            )
+                          ]
+                        : [],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        b.colorfulWords > 0 ? '✓ [AB] 7 MÀU' : '[AB] 7 MÀU',
                         style: const TextStyle(
-                          color: Colors.white,
+                          fontSize: 10,
                           fontWeight: FontWeight.w900,
-                          fontSize: 12,
-                          shadows: [
-                            Shadow(color: Colors.black, blurRadius: 4),
-                          ],
+                          color: Colors.white,
+                          shadows: [Shadow(color: Colors.black, blurRadius: 2)],
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
 
               const SizedBox(width: 8),
 
-              // Danh sách nút màu đơn sắc
+              // 7 Dấu chấm màu sắc đơn sắc
               Expanded(
-                flex: 6,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _colors.map((c) {
-                      final isSelected = !isRainbow && b.color.toLowerCase() == c['id'];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3.0),
-                        child: GestureDetector(
-                          onTap: () {
-                            sync.updateCurrentBoardColor(c['id'], 0);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: c['color'] as Color,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected ? Colors.white : Colors.grey.shade800,
-                                width: isSelected ? 3.0 : 1.0,
-                              ),
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: (c['color'] as Color).withOpacity(0.6),
-                                        blurRadius: 8,
-                                        spreadRadius: 1,
-                                      ),
-                                    ]
-                                  : null,
-                            ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: _colors.map((c) {
+                    final isAct = b.colorfulWords == 0 && b.color == c['id'];
+                    return GestureDetector(
+                      onTap: () {
+                        sync.updateCurrentBoardColor(c['id'], 0);
+                      },
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: c['color'] as Color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isAct ? Colors.white : Colors.transparent,
+                            width: 2,
                           ),
+                          boxShadow: isAct
+                              ? [
+                                  BoxShadow(
+                                    color: (c['color'] as Color).withOpacity(0.6),
+                                    blurRadius: 6,
+                                  )
+                                ]
+                              : [],
                         ),
-                      );
-                    }).toList(),
-                  ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
 
-  // --- 5. HIỆU ỨNG & TỐC ĐỘ ---
-  Widget _buildEffectSection(SyncController sync, LedBoard b) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'HIỆU ỨNG DI CHUYỂN & TỐC ĐỘ',
-            style: TextStyle(
-              color: Colors.cyanAccent,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+          const SizedBox(height: 10),
+
+          // Ô NHẬP NỘI DUNG CHỮ TIẾNG VIỆT
+          TextField(
+            controller: _textController,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFFF8FAFC),
+              fontWeight: FontWeight.w600,
             ),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<int>(
-            value: b.effect,
-            dropdownColor: const Color(0xFF1E293B),
-            style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
+              hintText: 'Nhập nội dung chữ hiển thị lên LED...',
+              hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
               filled: true,
-              fillColor: const Color(0xFF0F172A),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              fillColor: const Color(0xFF182234),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFF243248)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFF243248)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFF06B6D4)),
+              ),
             ),
-            items: _effects
-                .map((e) => DropdownMenuItem<int>(
-                      value: e['id'] as int,
-                      child: Text(e['name'] as String),
-                    ))
-                .toList(),
             onChanged: (val) {
-              if (val != null) {
-                sync.updateCurrentBoardEffect(val);
-              }
+              sync.updateCurrentBoardText(val);
             },
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleBtn({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF06B6D4) : const Color(0xFF182234),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFF243248)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: active ? Colors.black : const Color(0xFFF8FAFC),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlignBtn({
+    required IconData icon,
+    required String align,
+    required String current,
+    required SyncController sync,
+  }) {
+    final active = current == align;
+    return GestureDetector(
+      onTap: () => sync.updateCurrentBoardFont(alignH: align),
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF06B6D4).withOpacity(0.2) : const Color(0xFF182234),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: active ? const Color(0xFF06B6D4) : const Color(0xFF243248),
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: active ? const Color(0xFF06B6D4) : const Color(0xFF94A3B8),
+        ),
+      ),
+    );
+  }
+
+  void _showRainbowPicker(BuildContext context, SyncController sync, LedBoard b) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111827),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '🌈 Chọn Mẫu Chữ 7 Màu Rainbow [AB]',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFF8FAFC),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18, color: Color(0xFF94A3B8)),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _rainbowPresets.map((rp) {
+                  final active = b.colorfulWords == rp['id'];
+                  return GestureDetector(
+                    onTap: () {
+                      sync.updateCurrentBoardColor(b.color, rp['id'] as int);
+                      Navigator.pop(ctx);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: active ? const Color(0xFF06B6D4).withOpacity(0.2) : const Color(0xFF182234),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: active ? const Color(0xFF06B6D4) : const Color(0xFF243248),
+                        ),
+                      ),
+                      child: Text(
+                        rp['name'] as String,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                          color: active ? const Color(0xFF06B6D4) : const Color(0xFFF8FAFC),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // =========================================================================
+  // 4. HIỆU ỨNG CHUYỂN ĐỘNG & TỐC ĐỘ (MOTION)
+  // =========================================================================
+  Widget _buildMotionSection(SyncController sync, LedBoard b) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF243248)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.slow_motion_video, size: 14, color: Color(0xFF06B6D4)),
+              SizedBox(width: 6),
+              Text(
+                'Hiệu Ứng Di Chuyển & Tốc Độ',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFF8FAFC),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Chọn hiệu ứng dropdown
+          Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF182234),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFF243248)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: b.effect,
+                isExpanded: true,
+                dropdownColor: const Color(0xFF182234),
+                style: const TextStyle(fontSize: 11.5, color: Color(0xFFF8FAFC)),
+                items: _effects.map((e) {
+                  return DropdownMenuItem(
+                    value: e['id'] as int,
+                    child: Text(e['name'] as String),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) sync.updateCurrentBoardEffect(val);
+                },
+              ),
+            ),
+          ),
+
           const SizedBox(height: 10),
+
+          // Thanh kéo Tốc độ & Thời gian dừng
           Row(
             children: [
-              const Text('Tốc độ: ', style: TextStyle(color: Colors.grey, fontSize: 13)),
-              Text('${b.speed}', style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
               Expanded(
-                child: Slider(
-                  value: b.speed.toDouble(),
-                  min: 1,
-                  max: 20,
-                  divisions: 19,
-                  activeColor: Colors.cyanAccent,
-                  inactiveColor: Colors.blueGrey.shade800,
-                  onChanged: (val) {
-                    setState(() {
-                      b.speed = val.toInt();
-                    });
-                  },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tốc độ: ${b.speed} (1: Rất nhanh, 20: Chậm)',
+                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
+                    ),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 3,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      ),
+                      child: Slider(
+                        value: b.speed.toDouble(),
+                        min: 1,
+                        max: 20,
+                        divisions: 19,
+                        activeColor: const Color(0xFF06B6D4),
+                        inactiveColor: const Color(0xFF243248),
+                        onChanged: (val) {
+                          sync.updateCurrentBoardEffect(b.effect, speed: val.toInt());
+                        },
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dừng: ${b.stayTime} giây',
+                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
+                    ),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 3,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      ),
+                      child: Slider(
+                        value: b.stayTime.toDouble(),
+                        min: 0,
+                        max: 10,
+                        divisions: 10,
+                        activeColor: const Color(0xFF10B981),
+                        inactiveColor: const Color(0xFF243248),
+                        onChanged: (val) {
+                          sync.updateCurrentBoardEffect(b.effect, stayTime: val.toInt());
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Badge ClearType chuẩn 201
+          Row(
+            children: [
+              const Icon(Icons.check_circle, size: 12, color: Color(0xFF10B981)),
+              const SizedBox(width: 4),
+              const Text(
+                'Do not clear (Clear=201) giúp chữ chạy mượt mà không chớp đen',
+                style: TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -608,60 +986,112 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // --- 6. VIỀN CHẠY ĐỘC LẬP (RUN BORDER) ---
-  Widget _buildBorderSection(SyncController sync, LedBoard b) {
+  // =========================================================================
+  // 5. VIỀN CHẠY ĐỘC LẬP (RUN BORDER)
+  // =========================================================================
+  Widget _buildRunBorderSection(SyncController sync, LedBoard b) {
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF243248)),
       ),
+      padding: const EdgeInsets.all(12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'VIỀN CHẠY ĐỘC LẬP (RUN BORDER)',
-                style: TextStyle(
-                  color: Colors.amberAccent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+              const Row(
+                children: [
+                  Icon(Icons.crop_square, size: 14, color: Color(0xFF06B6D4)),
+                  SizedBox(width: 6),
+                  Text(
+                    'Viền Chạy Độc Lập 4 Cạnh (Run Border)',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF8FAFC),
+                    ),
+                  ),
+                ],
               ),
               Switch(
                 value: b.borderStyle > 0,
-                activeColor: Colors.amberAccent,
-                onChanged: (val) {
-                  sync.updateCurrentBoardBorder(val ? 1 : 0);
+                activeColor: const Color(0xFF06B6D4),
+                onChanged: (enabled) {
+                  sync.updateCurrentBoardBorder(
+                    borderStyle: enabled ? 1 : 0,
+                  );
                 },
               ),
             ],
           ),
+
           if (b.borderStyle > 0) ...[
             const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
-              value: b.borderStyle,
-              dropdownColor: const Color(0xFF1E293B),
-              style: const TextStyle(color: Colors.white, fontSize: 13),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF0F172A),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+
+            // Chọn mẫu viền 001..007
+            Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF182234),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFF243248)),
               ),
-              items: _borders
-                  .map((br) => DropdownMenuItem<int>(
-                        value: br['id'] as int,
-                        child: Text(br['name'] as String),
-                      ))
-                  .toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  sync.updateCurrentBoardBorder(val);
-                }
-              },
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: b.borderStyle,
+                  isExpanded: true,
+                  dropdownColor: const Color(0xFF182234),
+                  style: const TextStyle(fontSize: 11.5, color: Color(0xFFF8FAFC)),
+                  items: _borders.map((br) {
+                    return DropdownMenuItem(
+                      value: br['id'] as int,
+                      child: Text(br['name'] as String),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      sync.updateCurrentBoardBorder(borderStyle: val);
+                    }
+                  },
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // Hướng chạy viền & Tốc độ viền
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Text('Hướng: ', style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8))),
+                      ChoiceChip(
+                        label: const Text('Thuận (CW)', style: TextStyle(fontSize: 10)),
+                        selected: b.borderMode == 'Clockwise',
+                        selectedColor: const Color(0xFF06B6D4),
+                        onSelected: (s) {
+                          if (s) sync.updateCurrentBoardBorder(borderStyle: b.borderStyle, borderMode: 'Clockwise');
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      ChoiceChip(
+                        label: const Text('Ngược', style: TextStyle(fontSize: 10)),
+                        selected: b.borderMode != 'Clockwise',
+                        selectedColor: const Color(0xFF06B6D4),
+                        onSelected: (s) {
+                          if (s) sync.updateCurrentBoardBorder(borderStyle: b.borderStyle, borderMode: 'Anti-clockwise');
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -669,155 +1099,75 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // --- 7. NÚT GỬI ĐỒNG BỘ 3 BẢNG ---
-  Widget _buildSyncAction(SyncController sync) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 54,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 8,
-            ),
-            onPressed: sync.isSyncing
-                ? null
-                : () async {
-                    await sync.syncAllBoards();
-                  },
-            child: Ink(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: sync.isSyncing
-                      ? [Colors.blueGrey.shade700, Colors.blueGrey.shade800]
-                      : [const Color(0xFF06B6D4), const Color(0xFF3B82F6)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: sync.isSyncing
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'ĐANG NẠP (${(sync.progress * 100).toInt()}%)...',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.bolt, color: Colors.yellowAccent, size: 28),
-                          SizedBox(width: 8),
-                          Text(
-                            '⚡ GỬI ĐỒNG BỘ CẢ 3 BẢNG',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 42,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: Colors.cyanAccent.withOpacity(0.6)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            icon: const Icon(Icons.wifi, color: Colors.cyanAccent, size: 18),
-            label: Text(
-              'NẠP TRỰC TIẾP (${sync.currentBoard.name}) KHI ĐÃ BẮT WIFI',
-              style: const TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-            onPressed: sync.isSyncing
-                ? null
-                : () async {
-                    await sync.syncCurrentBoardDirect();
-                  },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --- 8. BẢNG NHẬT KÝ CONSOLE LOG ---
-  Widget _buildConsoleLogs(SyncController sync) {
+  // =========================================================================
+  // 6. NHẬT KÝ ĐIỀU KHIỂN & CONSOLE
+  // =========================================================================
+  Widget _buildLogsSection(SyncController sync) {
     return Container(
-      height: 140,
-      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF050B14),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blueGrey.shade900),
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF243248)),
       ),
+      padding: const EdgeInsets.all(12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'NHẬT KÝ ĐIỀU KHIỂN (CONSOLE)',
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'monospace',
-                ),
+              const Row(
+                children: [
+                  Icon(Icons.terminal, size: 14, color: Color(0xFF06B6D4)),
+                  SizedBox(width: 6),
+                  Text(
+                    'Nhật Ký Truyền Dữ Liệu (Console)',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF8FAFC),
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                sync.currentStatus,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.cyanAccent,
-                  fontSize: 11,
-                  fontFamily: 'monospace',
+              GestureDetector(
+                onTap: () => sync.clearLogs(),
+                child: const Text(
+                  'Xóa nhật ký',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF06B6D4)),
                 ),
               ),
             ],
           ),
-          const Divider(color: Colors.blueGrey, height: 12),
-          Expanded(
+          const SizedBox(height: 8),
+
+          Container(
+            height: 130,
+            decoration: BoxDecoration(
+              color: const Color(0xFF06070A),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF1F2D44)),
+            ),
+            padding: const EdgeInsets.all(8),
             child: ListView.builder(
-              reverse: true,
+              controller: _logScrollController,
               itemCount: sync.logs.length,
               itemBuilder: (context, idx) {
-                final log = sync.logs[sync.logs.length - 1 - idx];
-                Color logColor = Colors.grey.shade400;
-                if (log.contains('THÀNH CÔNG')) logColor = Colors.greenAccent;
-                if (log.contains('CẢNH BÁO') || log.contains('LỖI')) logColor = Colors.redAccent;
-                if (log.contains('BẮT ĐẦU')) logColor = Colors.cyanAccent;
+                final log = sync.logs[idx];
+                Color c = const Color(0xFF94A3B8);
+                if (log.contains('[THÀNH CÔNG]')) c = const Color(0xFF10B981);
+                if (log.contains('[LỖI]')) c = const Color(0xFFEF4444);
+                if (log.contains('[CẢNH BÁO]')) c = const Color(0xFFF59E0B);
+                if (log.contains('[ACK OK]')) c = const Color(0xFF06B6D4);
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 1.0),
+                  padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
                     log,
                     style: TextStyle(
-                      color: logColor,
-                      fontSize: 11,
-                      fontFamily: 'monospace',
+                      fontFamily: 'Consolas',
+                      fontSize: 10,
+                      color: c,
                     ),
                   ),
                 );
@@ -828,27 +1178,252 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
   }
+
+  // =========================================================================
+  // 7. THANH NẠP STICKY DƯỚI CÙNG
+  // =========================================================================
+  Widget _buildBottomStickyBar(SyncController sync, LedBoard b) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: const BoxDecoration(
+        color: Color(0xFF111827),
+        border: Border(top: BorderSide(color: Color(0xFF243248))),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // NÚT 1: GỬI ĐỒNG BỘ CẢ 3 BẢNG (TỰ ĐỘNG CHUYỂN WIFI)
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF06B6D4),
+                  foregroundColor: Colors.black,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: sync.isSyncing
+                    ? null
+                    : () async {
+                        await sync.syncAllBoards();
+                      },
+                child: sync.isSyncing
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'ĐANG NẠP DỮ LIỆU...',
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                          ),
+                        ],
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.bolt, size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            '⚡ GỬI ĐỒNG BỘ CẢ 3 BẢNG (AUTO SYNC)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // NÚT 2: NẠP RIÊNG BẢNG NÀY (BẢNG ĐANG KẾT NỐI WI-FI)
+            SizedBox(
+              width: double.infinity,
+              height: 38,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF10B981),
+                  side: const BorderSide(color: Color(0xFF10B981), width: 1.2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: sync.isSyncing
+                    ? null
+                    : () async {
+                        await sync.syncCurrentBoardDirect();
+                      },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.wifi_tethering, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      '📡 NẠP RIÊNG ${b.name} (${b.ssid})',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getEffectName(int eff) {
+    final match = _effects.firstWhere(
+      (e) => e['id'] == eff,
+      orElse: () => {'name': 'Hiệu ứng $eff'},
+    );
+    return match['name'] as String;
+  }
 }
 
-class _LedGridPainter extends CustomPainter {
+// =========================================================================
+// CUSTOM PAINTER: MÔ PHỎNG MÀN HÌNH CHẤM LED 64x32
+// =========================================================================
+class LedSimulatorPainter extends CustomPainter {
+  final LedBoard board;
+  final double animProgress;
+
+  LedSimulatorPainter({required this.board, required this.animProgress});
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
+    const int cols = 64;
+    const int rows = 32;
 
-    const double cols = 64;
-    const double rows = 32;
-    final dx = size.width / cols;
-    final dy = size.height / rows;
+    final dotWidth = size.width / cols;
+    final dotHeight = size.height / rows;
+    final radius = min(dotWidth, dotHeight) * 0.42;
 
-    for (int r = 0; r < rows; r++) {
-      for (int c = 0; c < cols; c++) {
-        canvas.drawCircle(Offset(c * dx + dx / 2, r * dy + dy / 2), 0.7, paint);
+    // Palette viền 7 mẫu
+    final borderPalettes = {
+      1: [const Color(0xFFFF0000), const Color(0xFFFFEB3B), const Color(0xFF00E676)],
+      2: [Colors.white, const Color(0xFF00E5FF)],
+      3: [
+        const Color(0xFFFF0000),
+        const Color(0xFFFFEB3B),
+        const Color(0xFF00E676),
+        const Color(0xFF00E5FF),
+        const Color(0xFF2979FF),
+        const Color(0xFFF50057),
+      ],
+      4: [const Color(0xFFFF0000), const Color(0xFF00E676), const Color(0xFF2979FF)],
+      5: [const Color(0xFFF50057), const Color(0xFF00E5FF)],
+      6: [const Color(0xFFFFEB3B), const Color(0xFFFF3333)],
+      7: [const Color(0xFF00E676), const Color(0xFFFFEB3B)],
+    };
+
+    final hasBorder = board.borderStyle > 0;
+    final borderPalette = borderPalettes[board.borderStyle] ?? borderPalettes[1]!;
+
+    // Tính offset chạy animation của chữ
+    final eff = board.effect;
+    int shiftX = 0;
+    int shiftY = 0;
+
+    if (eff == 1 || eff == 202) {
+      shiftX = -(animProgress * 40).toInt();
+    } else if (eff == 2) {
+      shiftX = (animProgress * 40).toInt();
+    } else if (eff == 37) {
+      shiftY = -(animProgress * 24).toInt();
+    } else if (eff == 36) {
+      shiftY = (animProgress * 24).toInt();
+    }
+
+    // Vẽ từng chấm LED
+    for (int y = 0; y < rows; y++) {
+      for (int x = 0; x < cols; x++) {
+        final cx = x * dotWidth + dotWidth / 2;
+        final cy = y * dotHeight + dotHeight / 2;
+
+        final isBorderPixel = (x == 0 || x == cols - 1 || y == 0 || y == rows - 1);
+
+        if (hasBorder && isBorderPixel) {
+          // Tính màu viền chạy quanh 4 cạnh
+          int perimeterIndex = 0;
+          if (y == 0) perimeterIndex = x;
+          else if (x == cols - 1) perimeterIndex = cols + y;
+          else if (y == rows - 1) perimeterIndex = cols + rows + (cols - 1 - x);
+          else perimeterIndex = cols * 2 + rows + (rows - 1 - y);
+
+          final tick = (animProgress * 20).toInt();
+          final isCw = board.borderMode == 'Clockwise';
+          final palIdx = isCw
+              ? (perimeterIndex + tick) % borderPalette.length
+              : (perimeterIndex - tick).abs() % borderPalette.length;
+
+          final bColor = borderPalette[palIdx];
+          final paint = Paint()..color = bColor;
+          canvas.drawCircle(Offset(cx, cy), radius, paint);
+          continue;
+        }
+
+        // Vẽ các chấm LED nền & chữ
+        final paint = Paint()..color = const Color(0xFF141720);
+        canvas.drawCircle(Offset(cx, cy), radius, paint);
       }
+    }
+
+    // Vẽ chữ mô phỏng đơn giản lướt trên mặt LED
+    if (board.text.isNotEmpty) {
+      final baseColor = HuiduProtocol.parseColor(board.color);
+      final textSpan = TextSpan(
+        text: board.text,
+        style: TextStyle(
+          color: board.colorfulWords > 0 ? const Color(0xFF00E5FF) : baseColor,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          fontFamily: board.fontFamily,
+          shadows: [
+            Shadow(
+              color: (board.colorfulWords > 0 ? const Color(0xFF00E5FF) : baseColor).withOpacity(0.8),
+              blurRadius: 8,
+            )
+          ],
+        ),
+      );
+
+      final tp = TextPainter(
+        text: textSpan,
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      );
+      tp.layout();
+
+      double tx = (size.width - tp.width) / 2 + shiftX;
+      double ty = (size.height - tp.height) / 2 + shiftY;
+
+      canvas.save();
+      canvas.clipRect(Rect.fromLTWH(4, 4, size.width - 8, size.height - 8));
+      tp.paint(canvas, Offset(tx, ty));
+      canvas.restore();
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant LedSimulatorPainter oldDelegate) {
+    return true;
+  }
 }
