@@ -1350,8 +1350,16 @@ class SimTextMask {
   final int width;
   final int height;
   final List<bool> pixels;
+  final int litCount;
 
-  SimTextMask({required this.width, required this.height, required this.pixels});
+  SimTextMask({
+    required this.width,
+    required this.height,
+    required this.pixels,
+    this.litCount = 0,
+  });
+
+  bool get hasLitPixels => litCount > 0;
 
   bool isLit(int x, int y) {
     if (x < 0 || x >= width || y < 0 || y >= height) return false;
@@ -1367,7 +1375,7 @@ class SimTextMask {
   }) async {
     final cleanText = text.trim();
     if (cleanText.isEmpty) {
-      return SimTextMask(width: 1, height: 1, pixels: [false]);
+      return SimTextMask(width: 1, height: 1, pixels: [false], litCount: 0);
     }
 
     // Tự động scale font để chiều cao chữ lấp đầy ~18-24 chấm LED trong khung 32 dòng
@@ -1406,23 +1414,29 @@ class SimTextMask {
     final pic = recorder.endRecording();
     final img = await pic.toImage(tw, th);
     final byteData = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
-    final bytes = byteData!.buffer.asUint8List();
+    final bytes = byteData?.buffer.asUint8List() ?? Uint8List(0);
 
     final pixels = List<bool>.filled(tw * th, false);
-    for (int y = 0; y < th; y++) {
-      for (int x = 0; x < tw; x++) {
-        final idx = (y * tw + x) * 4;
-        final a = bytes[idx + 3];
-        final r = bytes[idx];
-        final g = bytes[idx + 1];
-        final b = bytes[idx + 2];
-        if (a > 60 && (r > 60 || g > 60 || b > 60)) {
-          pixels[y * tw + x] = true;
+    int lit = 0;
+    if (bytes.isNotEmpty) {
+      for (int y = 0; y < th; y++) {
+        for (int x = 0; x < tw; x++) {
+          final idx = (y * tw + x) * 4;
+          if (idx + 3 < bytes.length) {
+            final a = bytes[idx + 3];
+            final r = bytes[idx];
+            final g = bytes[idx + 1];
+            final b = bytes[idx + 2];
+            if (a > 30 || r > 50 || g > 50 || b > 50) {
+              pixels[y * tw + x] = true;
+              lit++;
+            }
+          }
         }
       }
     }
 
-    return SimTextMask(width: tw, height: th, pixels: pixels);
+    return SimTextMask(width: tw, height: th, pixels: pixels, litCount: lit);
   }
 }
 
@@ -1628,6 +1642,35 @@ class LedSimulatorPainter extends CustomPainter {
           canvas.drawCircle(Offset(cx, cy), radius, darkLedPaint);
         }
       }
+    }
+
+    // Dự phòng an toàn 100%: Nếu mask chưa sẵn sàng hoặc rỗng, vẽ chữ trực tiếp phát sáng
+    if ((mask == null || !mask!.hasLitPixels) && isVisible && board.text.trim().isNotEmpty) {
+      final fallbackColor = isRainbow ? const Color(0xFF00E5FF) : baseColor;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: board.text.trim(),
+          style: TextStyle(
+            color: fallbackColor,
+            fontSize: size.height * 0.45,
+            fontWeight: FontWeight.w900,
+            shadows: [
+              Shadow(
+                color: fallbackColor.withOpacity(0.8),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+        ),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: size.width - 16);
+
+      final offset = Offset(
+        (size.width - tp.width) / 2,
+        (size.height - tp.height) / 2,
+      );
+      tp.paint(canvas, offset);
     }
   }
 

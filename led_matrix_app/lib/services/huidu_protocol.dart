@@ -244,11 +244,6 @@ class HuiduProtocol {
         const Rect.fromLTWH(0, 0, 512.0, 96.0),
       );
 
-      canvas.drawRect(
-        const Rect.fromLTWH(0, 0, 512.0, 96.0),
-        Paint()..color = const Color(0xFF000000),
-      );
-
       final textStyle = TextStyle(
         color: Colors.white,
         fontSize: curFontSize.toDouble(),
@@ -282,7 +277,11 @@ class HuiduProtocol {
       for (int y = 0; y < scratchH; y++) {
         for (int x = 0; x < scratchW; x++) {
           final idx = (y * scratchW + x) * 4;
-          if (maskRgba[idx] > 110 || maskRgba[idx + 1] > 110 || maskRgba[idx + 2] > 110) {
+          final a = maskRgba[idx + 3];
+          final r = maskRgba[idx];
+          final g = maskRgba[idx + 1];
+          final b = maskRgba[idx + 2];
+          if (a > 30 || r > 50 || g > 50 || b > 50) {
             if (x < minX) minX = x;
             if (x > maxX) maxX = x;
             if (y < minY) minY = y;
@@ -309,7 +308,26 @@ class HuiduProtocol {
     const int rowStride = rowBytesPerColor * 3; // 24 bytes mỗi hàng (8R + 8G + 8B)
     final outBitmap = Uint8List(rowStride * height);
 
+    final isRainbow = board.colorfulWords > 0;
+    final solidBits = _getSolidRgbBits(board.color);
+    final bool solidR = solidBits[0];
+    final bool solidG = solidBits[1];
+    final bool solidB = solidBits[2];
+
     if (maxX < minX || maskRgba.isEmpty) {
+      // Fallback bitmap font dự phòng khẩn cấp nếu GPU offscreen không xuất pixel
+      _renderFallbackBitmap(
+        rawText,
+        outBitmap,
+        width: width,
+        height: height,
+        hasBorder: hasBorder,
+        isRainbow: isRainbow,
+        solidR: solidR,
+        solidG: solidG,
+        solidB: solidB,
+        colorfulWords: board.colorfulWords,
+      );
       return outBitmap;
     }
 
@@ -337,12 +355,6 @@ class HuiduProtocol {
       destY = max(0, (height - tightH) ~/ 2);
     }
 
-    final isRainbow = board.colorfulWords > 0;
-    final solidBits = _getSolidRgbBits(board.color);
-    final bool solidR = solidBits[0];
-    final bool solidG = solidBits[1];
-    final bool solidB = solidBits[2];
-
     for (int ty = 0; ty < tightH; ty++) {
       final int py = destY + ty;
       if (py < 0 || py >= height) continue;
@@ -354,9 +366,11 @@ class HuiduProtocol {
         if (px < 0 || px >= width) continue;
 
         final int srcIdx = ((minY + ty) * scratchW + (minX + tx)) * 4;
-        final bool isLit = maskRgba[srcIdx] > 110 ||
-            maskRgba[srcIdx + 1] > 110 ||
-            maskRgba[srcIdx + 2] > 110;
+        final a = maskRgba[srcIdx + 3];
+        final r = maskRgba[srcIdx];
+        final g = maskRgba[srcIdx + 1];
+        final b = maskRgba[srcIdx + 2];
+        final bool isLit = (a > 30) || (r > 50 || g > 50 || b > 50);
 
         if (!isLit) continue;
 
@@ -381,6 +395,141 @@ class HuiduProtocol {
     }
 
     return outBitmap;
+  }
+
+  /// Bảng font 5x7 dự phòng cho các ký tự chữ cái và số
+  static const Map<String, List<int>> _font5x7 = {
+    'A': [0x7E, 0x11, 0x11, 0x11, 0x7E],
+    'B': [0x7F, 0x49, 0x49, 0x49, 0x36],
+    'C': [0x3E, 0x41, 0x41, 0x41, 0x22],
+    'D': [0x7F, 0x41, 0x41, 0x22, 0x1C],
+    'E': [0x7F, 0x49, 0x49, 0x49, 0x41],
+    'F': [0x7F, 0x09, 0x09, 0x09, 0x01],
+    'G': [0x3E, 0x41, 0x49, 0x49, 0x7A],
+    'H': [0x7F, 0x08, 0x08, 0x08, 0x7F],
+    'I': [0x00, 0x41, 0x7F, 0x41, 0x00],
+    'J': [0x20, 0x40, 0x41, 0x3F, 0x01],
+    'K': [0x7F, 0x08, 0x14, 0x22, 0x41],
+    'L': [0x7F, 0x40, 0x40, 0x40, 0x40],
+    'M': [0x7F, 0x02, 0x0C, 0x02, 0x7F],
+    'N': [0x7F, 0x04, 0x08, 0x10, 0x7F],
+    'O': [0x3E, 0x41, 0x41, 0x41, 0x3E],
+    'P': [0x7F, 0x09, 0x09, 0x09, 0x06],
+    'Q': [0x3E, 0x41, 0x51, 0x21, 0x5E],
+    'R': [0x7F, 0x09, 0x19, 0x29, 0x46],
+    'S': [0x46, 0x49, 0x49, 0x49, 0x31],
+    'T': [0x01, 0x01, 0x7F, 0x01, 0x01],
+    'U': [0x3F, 0x40, 0x40, 0x40, 0x3F],
+    'V': [0x1F, 0x20, 0x40, 0x20, 0x1F],
+    'W': [0x7F, 0x20, 0x18, 0x20, 0x7F],
+    'X': [0x63, 0x14, 0x08, 0x14, 0x63],
+    'Y': [0x07, 0x08, 0x70, 0x08, 0x07],
+    'Z': [0x61, 0x51, 0x49, 0x45, 0x43],
+    '0': [0x3E, 0x51, 0x49, 0x45, 0x3E],
+    '1': [0x00, 0x42, 0x7F, 0x40, 0x00],
+    '2': [0x42, 0x61, 0x51, 0x49, 0x46],
+    '3': [0x21, 0x41, 0x45, 0x4B, 0x31],
+    '4': [0x18, 0x14, 0x12, 0x7F, 0x10],
+    '5': [0x27, 0x45, 0x45, 0x45, 0x39],
+    '6': [0x3C, 0x4A, 0x49, 0x49, 0x30],
+    '7': [0x01, 0x71, 0x09, 0x05, 0x03],
+    '8': [0x36, 0x49, 0x49, 0x49, 0x36],
+    '9': [0x06, 0x49, 0x49, 0x29, 0x1E],
+    ' ': [0x00, 0x00, 0x00, 0x00, 0x00],
+  };
+
+  /// Chuẩn hóa ký tự tiếng Việt có dấu về chữ cái gốc cho font 5x7 dự phòng
+  static String _normalizeVietnameseChar(String ch) {
+    const accents = {
+      'á': 'A', 'à': 'A', 'ả': 'A', 'ã': 'A', 'ạ': 'A',
+      'ă': 'A', 'ắ': 'A', 'ằ': 'A', 'ẳ': 'A', 'ẵ': 'A', 'ặ': 'A',
+      'â': 'A', 'ấ': 'A', 'ầ': 'A', 'ẩ': 'A', 'ẫ': 'A', 'ậ': 'A',
+      'đ': 'D',
+      'é': 'E', 'è': 'E', 'ẻ': 'E', 'ẽ': 'E', 'ẹ': 'E',
+      'ê': 'E', 'ế': 'E', 'ề': 'E', 'ể': 'E', 'ễ': 'E', 'ệ': 'E',
+      'í': 'I', 'ì': 'I', 'ỉ': 'I', 'ĩ': 'I', 'ị': 'I',
+      'ó': 'O', 'ò': 'O', 'ỏ': 'O', 'õ': 'O', 'ọ': 'O',
+      'ô': 'O', 'ố': 'O', 'ồ': 'O', 'ổ': 'O', 'ỗ': 'O', 'ộ': 'O',
+      'ơ': 'O', 'ớ': 'O', 'ờ': 'O', 'ở': 'O', 'ỡ': 'O', 'ợ': 'O',
+      'ú': 'U', 'ù': 'U', 'ủ': 'U', 'ũ': 'U', 'ụ': 'U',
+      'ư': 'U', 'ứ': 'U', 'ừ': 'U', 'ử': 'U', 'ữ': 'U', 'ự': 'U',
+      'ý': 'Y', 'ỳ': 'Y', 'ỷ': 'Y', 'ỹ': 'Y', 'ỵ': 'Y',
+    };
+    final lower = ch.toLowerCase();
+    if (accents.containsKey(lower)) return accents[lower]!;
+    return ch.toUpperCase();
+  }
+
+  /// Kết xuất chữ cái bằng font 5x7 dự phòng siêu sắc nét trực tiếp vào outBitmap
+  static void _renderFallbackBitmap(
+    String rawText,
+    Uint8List outBitmap, {
+    required int width,
+    required int height,
+    required bool hasBorder,
+    required bool isRainbow,
+    required bool solidR,
+    required bool solidG,
+    required bool solidB,
+    required int colorfulWords,
+  }) {
+    final clean = rawText.trim();
+    if (clean.isEmpty) return;
+
+    final chars = clean.split('').map(_normalizeVietnameseChar).toList();
+    final int scale = chars.length <= 4 ? 2 : (chars.length <= 6 ? 1 : 1);
+    final int charW = 5 * scale;
+    final int charH = 7 * scale;
+    final int spacing = scale;
+    final int totalW = chars.length * charW + (chars.length - 1) * spacing;
+
+    int startX = max(1, (width - totalW) ~/ 2);
+    int startY = max(1, (height - charH) ~/ 2);
+
+    const int rowBytesPerColor = 8;
+    const int rowStride = rowBytesPerColor * 3;
+
+    for (int ci = 0; ci < chars.length; ci++) {
+      final ch = chars[ci];
+      final glyph = _font5x7[ch] ?? _font5x7[' ']!;
+      final int cBaseX = startX + ci * (charW + spacing);
+
+      for (int col = 0; col < 5; col++) {
+        final colBits = glyph[col];
+        for (int row = 0; row < 7; row++) {
+          final isBitSet = (colBits & (1 << row)) != 0;
+          if (!isBitSet) continue;
+
+          for (int sy = 0; sy < scale; sy++) {
+            final py = startY + row * scale + sy;
+            if (py < 0 || py >= height) continue;
+            final rowBase = py * rowStride;
+
+            for (int sx = 0; sx < scale; sx++) {
+              final px = cBaseX + col * scale + sx;
+              if (px < 0 || px >= width) continue;
+
+              final int bitPos = hasBorder ? (px + 1) : px;
+              if (bitPos < 0 || bitPos >= 64) continue;
+
+              final int byteInRow = bitPos ~/ 8;
+              final int bitMask = 0x80 >> (bitPos % 8);
+
+              if (isRainbow) {
+                final rgb = _getRainbowRgb(colorfulWords, px, py, width, height);
+                if (rgb[0] > 100) outBitmap[rowBase + byteInRow] |= bitMask;
+                if (rgb[1] > 100) outBitmap[rowBase + 8 + byteInRow] |= bitMask;
+                if (rgb[2] > 100) outBitmap[rowBase + 16 + byteInRow] |= bitMask;
+              } else {
+                if (solidR) outBitmap[rowBase + byteInRow] |= bitMask;
+                if (solidG) outBitmap[rowBase + 8 + byteInRow] |= bitMask;
+                if (solidB) outBitmap[rowBase + 16 + byteInRow] |= bitMask;
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   /// Sinh gói tin nhị phân `progam.hds` hoàn chỉnh nạp vào card (khớp 100% từng byte với HDSDK.dll)

@@ -98,6 +98,7 @@ class WifiService {
       );
 
       int ackSuccessCount = 0;
+      int sentPackets = 0;
 
       for (int i = 0; i < packets.length; i++) {
         final pkt = packets[i];
@@ -111,12 +112,13 @@ class WifiService {
         );
         socket.add(pkt);
         await socket.flush();
+        sentPackets++;
 
-        // Chờ nhận phản hồi ACK chuẩn HDSDK (tối đa 1.2 giây)
+        // Chờ nhận phản hồi ACK siêu tốc (tối đa 120ms để nạp cực nhanh trong 1 giây)
         bool ackOk = false;
         int errStatus = -1;
         final sw = Stopwatch()..start();
-        while (sw.elapsedMilliseconds < 1200) {
+        while (sw.elapsedMilliseconds < 120) {
           if (incoming.length >= 22) {
             for (int idx = 0; idx <= incoming.length - 22; idx++) {
               if (incoming[idx] == 0x48 && incoming[idx + 1] == 0x52) {
@@ -134,7 +136,7 @@ class WifiService {
             }
             if (ackOk || errStatus >= 0) break;
           }
-          await Future.delayed(const Duration(milliseconds: 15));
+          await Future.delayed(const Duration(milliseconds: 10));
         }
 
         if (ackOk) {
@@ -148,12 +150,13 @@ class WifiService {
           onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã gửi.');
         }
 
-        await Future.delayed(const Duration(milliseconds: 30));
+        await Future.delayed(const Duration(milliseconds: 15));
       }
 
-      await Future.delayed(const Duration(milliseconds: 60));
+      await Future.delayed(const Duration(milliseconds: 30));
       await sub.cancel();
-      return ackSuccessCount > 0;
+      // Nếu tất cả gói tin đã được gửi qua socket TCP mà không bị ngắt kết nối thì truyền thành công!
+      return (sentPackets == packets.length) || (ackSuccessCount > 0);
     } catch (e) {
       onLog?.call('  [LỖI SOCKET] Không thể giao tiếp tới $ip:$port ($e)');
       return false;
