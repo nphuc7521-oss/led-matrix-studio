@@ -78,15 +78,15 @@ class WifiService {
         socket = await Socket.connect(
           ip,
           port,
-          timeout: const Duration(milliseconds: 2200),
+          timeout: const Duration(milliseconds: 1200),
         );
       } catch (_) {
-        await Future.delayed(const Duration(milliseconds: 250));
+        await Future.delayed(const Duration(milliseconds: 100));
         await bindCurrentWifi();
         socket = await Socket.connect(
           ip,
           port,
-          timeout: const Duration(milliseconds: 2500),
+          timeout: const Duration(milliseconds: 1200),
         );
       }
       socket.setOption(SocketOption.tcpNoDelay, true);
@@ -112,11 +112,11 @@ class WifiService {
         socket.add(pkt);
         await socket.flush();
 
-        // Chờ nhận phản hồi ACK siêu tốc (tối đa 1.0 giây)
+        // Chờ nhận phản hồi ACK siêu tốc (tối đa 400ms vì card HD-WF2 phản hồi cực nhanh ~20ms)
         bool ackOk = false;
         int errStatus = -1;
         final sw = Stopwatch()..start();
-        while (sw.elapsedMilliseconds < 1000) {
+        while (sw.elapsedMilliseconds < 400) {
           if (incoming.length >= 22) {
             for (int idx = 0; idx <= incoming.length - 22; idx++) {
               if (incoming[idx] == 0x48 && incoming[idx + 1] == 0x52) {
@@ -134,7 +134,7 @@ class WifiService {
             }
             if (ackOk || errStatus >= 0) break;
           }
-          await Future.delayed(const Duration(milliseconds: 15));
+          await Future.delayed(const Duration(milliseconds: 10));
         }
 
         if (ackOk) {
@@ -148,10 +148,10 @@ class WifiService {
           onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã gửi.');
         }
 
-        await Future.delayed(const Duration(milliseconds: 35));
+        await Future.delayed(const Duration(milliseconds: 15));
       }
 
-      await Future.delayed(const Duration(milliseconds: 80));
+      await Future.delayed(const Duration(milliseconds: 40));
       await sub.cancel();
       return ackSuccessCount > 0;
     } catch (e) {

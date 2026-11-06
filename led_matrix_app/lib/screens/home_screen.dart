@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -77,6 +77,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   final List<int> _fontSizes = [10, 12, 14, 16, 18, 20];
 
+  SimTextMask? _currentMask;
+  String _lastMaskKey = '';
+
   @override
   void initState() {
     super.initState();
@@ -87,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     final controller = context.read<SyncController>();
     _textController = TextEditingController(text: controller.currentBoard.text);
+    _checkAndUpdateMask(controller.currentBoard);
   }
 
   @override
@@ -103,11 +107,32 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  void _checkAndUpdateMask(LedBoard b) {
+    final key = '${b.id}_${b.text}_${b.fontSize}_${b.bold}_${b.italic}_${b.underline}';
+    if (key != _lastMaskKey) {
+      _lastMaskKey = key;
+      SimTextMask.generate(
+        text: b.text,
+        fontSize: b.fontSize,
+        bold: b.bold,
+        italic: b.italic,
+        underline: b.underline,
+      ).then((mask) {
+        if (mounted) {
+          setState(() {
+            _currentMask = mask;
+          });
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final syncController = context.watch<SyncController>();
     final currentBoard = syncController.currentBoard;
     _syncTextFromBoard(currentBoard);
+    _checkAndUpdateMask(currentBoard);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0F19),
@@ -412,6 +437,7 @@ class _HomeScreenState extends State<HomeScreen>
                             painter: LedSimulatorPainter(
                               board: b,
                               animProgress: _isSimPaused ? 0.5 : _animController.value,
+                              mask: _currentMask,
                             ),
                           );
                         },
@@ -1318,13 +1344,101 @@ class _HomeScreenState extends State<HomeScreen>
 }
 
 // =========================================================================
-// CUSTOM PAINTER: MÔ PHỎNG MÀN HÌNH CHẤM LED 64x32
+// MẶT NẠ CHẤM LED MA TRẬN (SIM TEXT MASK 64x32)
+// =========================================================================
+class SimTextMask {
+  final int width;
+  final int height;
+  final List<bool> pixels;
+
+  SimTextMask({required this.width, required this.height, required this.pixels});
+
+  bool isLit(int x, int y) {
+    if (x < 0 || x >= width || y < 0 || y >= height) return false;
+    return pixels[y * width + x];
+  }
+
+  static Future<SimTextMask> generate({
+    required String text,
+    required int fontSize,
+    required bool bold,
+    required bool italic,
+    required bool underline,
+  }) async {
+    final cleanText = text.trim();
+    if (cleanText.isEmpty) {
+      return SimTextMask(width: 1, height: 1, pixels: [false]);
+    }
+
+    // Tự động scale font để chiều cao chữ lấp đầy ~18-24 chấm LED trong khung 32 dòng
+    final double fs = (fontSize.clamp(10, 24) * 1.15);
+
+    final style = TextStyle(
+      color: Colors.white,
+      fontSize: fs,
+      fontWeight: bold ? FontWeight.w900 : FontWeight.bold,
+      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+      height: 1.0,
+    );
+
+    final tp = TextPainter(
+      text: TextSpan(text: cleanText, style: style),
+      textAlign: TextAlign.left,
+      textDirection: TextDirection.ltr,
+    );
+    tp.layout();
+
+    final int tw = max(1, tp.width.ceil());
+    final int th = max(1, tp.height.ceil());
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()));
+    tp.paint(canvas, Offset.zero);
+
+    if (underline) {
+      canvas.drawLine(
+        Offset(0, th.toDouble() - 1),
+        Offset(tw.toDouble(), th.toDouble() - 1),
+        Paint()..color = Colors.white..strokeWidth = 2,
+      );
+    }
+
+    final pic = recorder.endRecording();
+    final img = await pic.toImage(tw, th);
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final bytes = byteData!.buffer.asUint8List();
+
+    final pixels = List<bool>.filled(tw * th, false);
+    for (int y = 0; y < th; y++) {
+      for (int x = 0; x < tw; x++) {
+        final idx = (y * tw + x) * 4;
+        final a = bytes[idx + 3];
+        final r = bytes[idx];
+        final g = bytes[idx + 1];
+        final b = bytes[idx + 2];
+        if (a > 60 && (r > 60 || g > 60 || b > 60)) {
+          pixels[y * tw + x] = true;
+        }
+      }
+    }
+
+    return SimTextMask(width: tw, height: th, pixels: pixels);
+  }
+}
+
+// =========================================================================
+// CUSTOM PAINTER: MÔ PHỎNG CHẤM LED MA TRẬN 64x32 CHUẨN XÁC 100% NHƯ WEB V18
 // =========================================================================
 class LedSimulatorPainter extends CustomPainter {
   final LedBoard board;
   final double animProgress;
+  final SimTextMask? mask;
 
-  LedSimulatorPainter({required this.board, required this.animProgress});
+  LedSimulatorPainter({
+    required this.board,
+    required this.animProgress,
+    this.mask,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1403,23 +1517,73 @@ class LedSimulatorPainter extends CustomPainter {
       }
     }
 
-    // Tính offset chạy animation của chữ
+    // Tính toán vị trí drawX, drawY của chữ dựa trên hiệu ứng chuyển động
     final eff = board.effect;
-    int shiftX = 0;
-    int shiftY = 0;
+    final textW = mask?.width ?? 30;
+    final textH = mask?.height ?? 18;
 
-    if (eff == 1 || eff == 202) {
-      shiftX = -(animProgress * 40).toInt();
-    } else if (eff == 2) {
-      shiftX = (animProgress * 40).toInt();
-    } else if (eff == 37) {
-      shiftY = -(animProgress * 24).toInt();
-    } else if (eff == 36) {
-      shiftY = (animProgress * 24).toInt();
+    int startX = (cols - textW) ~/ 2;
+    if (board.alignH == 'left') startX = 3;
+    else if (board.alignH == 'right') startX = cols - textW - 3;
+
+    int baselineY = (rows - textH) ~/ 2;
+    if (board.alignV == 'top') baselineY = 2;
+    else if (board.alignV == 'bottom') baselineY = rows - textH - 2;
+
+    int drawX = startX;
+    int drawY = baselineY;
+    bool isVisible = true;
+
+    if (eff == 1) { // Chạy sang trái (Move Left)
+      if (animProgress < 0.35) {
+        final t = animProgress / 0.35;
+        drawX = (cols + (startX - cols) * t).round();
+      } else if (animProgress < 0.70) {
+        drawX = startX; // Dừng tại giữa bảng
+      } else {
+        final t = (animProgress - 0.70) / 0.30;
+        drawX = (startX + (-textW - startX) * t).round();
+      }
+    } else if (eff == 2) { // Chạy sang phải (Move Right)
+      if (animProgress < 0.35) {
+        final t = animProgress / 0.35;
+        drawX = (-textW + (startX - (-textW)) * t).round();
+      } else if (animProgress < 0.70) {
+        drawX = startX;
+      } else {
+        final t = (animProgress - 0.70) / 0.30;
+        drawX = (startX + (cols - startX) * t).round();
+      }
+    } else if (eff == 37 || eff == 3) { // Kéo lên (Pull Up)
+      if (animProgress < 0.35) {
+        final t = animProgress / 0.35;
+        drawY = (rows + (baselineY - rows) * t).round();
+      } else if (animProgress < 0.70) {
+        drawY = baselineY;
+      } else {
+        final t = (animProgress - 0.70) / 0.30;
+        drawY = (baselineY + (-textH - baselineY) * t).round();
+      }
+    } else if (eff == 36 || eff == 4) { // Kéo xuống (Pull Down)
+      if (animProgress < 0.35) {
+        final t = animProgress / 0.35;
+        drawY = (-textH + (baselineY - (-textH)) * t).round();
+      } else if (animProgress < 0.70) {
+        drawY = baselineY;
+      } else {
+        final t = (animProgress - 0.70) / 0.30;
+        drawY = (baselineY + (rows - baselineY) * t).round();
+      }
+    } else if (eff == 202) { // Chạy liên tục sang trái
+      final totalDist = cols + textW;
+      drawX = (cols - (animProgress * totalDist)).round();
+    } else if (eff == 34) { // Nhấp nháy
+      isVisible = (animProgress * 8).toInt() % 2 == 0;
     }
 
-    // Vẽ nền LED & viền chạy độc lập chuẩn Web V18
     final darkLedPaint = Paint()..color = const Color(0xFF141720);
+    final baseColor = HuiduProtocol.parseColor(board.color);
+    final isRainbow = board.colorfulWords > 0;
 
     for (int y = 0; y < rows; y++) {
       for (int x = 0; x < cols; x++) {
@@ -1432,7 +1596,7 @@ class LedSimulatorPainter extends CustomPainter {
           if (bColor != null) {
             final paint = Paint()
               ..color = bColor
-              ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 2.5);
+              ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 2.0);
             canvas.drawCircle(Offset(cx, cy), radius, paint);
           } else {
             canvas.drawCircle(Offset(cx, cy), radius, darkLedPaint);
@@ -1440,70 +1604,30 @@ class LedSimulatorPainter extends CustomPainter {
           continue;
         }
 
-        canvas.drawCircle(Offset(cx, cy), radius, darkLedPaint);
+        // Chấm LED bên trong ma trận
+        bool isLit = false;
+        if (isVisible && mask != null && board.text.trim().isNotEmpty) {
+          final srcX = x - drawX;
+          final srcY = y - drawY;
+          isLit = mask!.isLit(srcX, srcY);
+        }
+
+        if (isLit) {
+          Color dotColor;
+          if (isRainbow) {
+            final hue = (x / cols * 360.0 + animProgress * 360.0) % 360.0;
+            dotColor = HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
+          } else {
+            dotColor = baseColor;
+          }
+          final litPaint = Paint()
+            ..color = dotColor
+            ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 1.5);
+          canvas.drawCircle(Offset(cx, cy), radius, litPaint);
+        } else {
+          canvas.drawCircle(Offset(cx, cy), radius, darkLedPaint);
+        }
       }
-    }
-
-    // Vẽ chữ mô phỏng rực rỡ chuẩn Web V18 (Chữ 7 Màu [AB] dạng Gradient chuyển sắc)
-    if (board.text.isNotEmpty) {
-      final baseColor = HuiduProtocol.parseColor(board.color);
-      final isRainbow = board.colorfulWords > 0;
-
-      TextStyle textStyle;
-      if (isRainbow) {
-        textStyle = TextStyle(
-          fontSize: 16,
-          fontWeight: board.bold ? FontWeight.w900 : FontWeight.bold,
-          fontStyle: board.italic ? FontStyle.italic : FontStyle.normal,
-          fontFamily: board.fontFamily,
-          foreground: Paint()
-            ..shader = ui.Gradient.linear(
-              Offset(shiftX.toDouble(), 0),
-              Offset(shiftX + size.width * 0.85, 0),
-              const [
-                Color(0xFFFF0000),
-                Color(0xFFFFEB3B),
-                Color(0xFF00E676),
-                Color(0xFF00E5FF),
-                Color(0xFF2979FF),
-                Color(0xFFF50057),
-                Color(0xFFFF0000),
-              ],
-            ),
-        );
-      } else {
-        textStyle = TextStyle(
-          color: baseColor,
-          fontSize: 16,
-          fontWeight: board.bold ? FontWeight.w900 : FontWeight.bold,
-          fontStyle: board.italic ? FontStyle.italic : FontStyle.normal,
-          fontFamily: board.fontFamily,
-          shadows: [
-            Shadow(color: baseColor.withOpacity(0.8), blurRadius: 6),
-          ],
-        );
-      }
-
-      final tp = TextPainter(
-        text: TextSpan(text: board.text, style: textStyle),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-      );
-      tp.layout();
-
-      double tx = (size.width - tp.width) / 2 + shiftX;
-      double ty = (size.height - tp.height) / 2 + shiftY;
-
-      canvas.save();
-      final clipMargin = board.borderStyle > 0 ? 8.0 : 4.0;
-      canvas.clipRect(Rect.fromLTWH(
-        clipMargin,
-        clipMargin,
-        size.width - clipMargin * 2,
-        size.height - clipMargin * 2,
-      ));
-      tp.paint(canvas, Offset(tx, ty));
-      canvas.restore();
     }
   }
 
