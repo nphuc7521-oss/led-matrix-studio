@@ -32,6 +32,8 @@ jobs:
         run: |
           rm -rf android
           flutter create . --platforms=android --org com.ledstudio
+          rm -f android/app/build.gradle*
+          cp android_custom/app_build.gradle android/app/build.gradle
           cp android_custom/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/ledstudio/led_matrix_app
           cp android_custom/MainActivity.kt android/app/src/main/kotlin/com/ledstudio/led_matrix_app/MainActivity.kt
