@@ -27,8 +27,8 @@ import NetworkExtension
         
         NEHotspotConfigurationManager.shared.apply(hotspotConfig) { error in
           if let error = error {
-            // Already connected or temporary error
-            if (error as NSError).code == 13 { // already connected
+            let nsError = error as NSError
+            if nsError.code == 13 || nsError.code == 8 {
               result(true)
             } else {
               result(FlutterError(code: "CONNECTION_FAILED", message: error.localizedDescription, details: nil))
@@ -43,8 +43,27 @@ import NetworkExtension
           result(nil)
           return
         }
-        NEHotspotConfigurationManager.shared.removeConfiguration(forSSID: ssid)
+        if !ssid.isEmpty {
+          NEHotspotConfigurationManager.shared.removeConfiguration(forSSID: ssid)
+        }
         result(nil)
+      } else if call.method == "bindCurrentWifi" {
+        result(true)
+      } else if call.method == "openWifiSettings" {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+          if UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+          }
+        }
+        result(nil)
+      } else if call.method == "getCurrentWifiSsid" {
+        if #available(iOS 14.0, *) {
+          NEHotspotNetwork.fetchCurrent { network in
+            result(network?.ssid ?? "")
+          }
+        } else {
+          result("")
+        }
       } else {
         result(FlutterMethodNotImplemented)
       }

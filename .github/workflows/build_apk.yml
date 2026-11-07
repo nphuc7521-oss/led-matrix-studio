@@ -1,4 +1,4 @@
-name: Build Android APK (Honor 400 Release)
+name: Build Android APK (Honor 400 Release) & iOS IPA
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build Flutter APK
+    name: Build Flutter APK (Android)
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -99,5 +99,63 @@ jobs:
           files: |
             ./build_output/HD2020_LED_Studio_Honor.apk
             ./build_output/HD2020_LED_Studio_Debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-ios:
+    name: Build Flutter IPA (iOS)
+    needs: build
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Recreate Clean iOS Project
+        working-directory: ./led_matrix_app
+        run: |
+          rm -rf ios
+          flutter create . --platforms=ios --org com.ledstudio
+          cp ios_custom/Info.plist ios/Runner/Info.plist
+          cp ios_custom/AppDelegate.swift ios/Runner/AppDelegate.swift
+
+      - name: Install Dependencies
+        working-directory: ./led_matrix_app
+        run: flutter pub get
+
+      - name: Build Unsigned iOS App
+        working-directory: ./led_matrix_app
+        run: |
+          flutter build ios --release --no-codesign
+
+      - name: Package Payload into IPA
+        run: |
+          mkdir -p build_output/Payload
+          cp -r ./led_matrix_app/build/ios/iphoneos/Runner.app ./build_output/Payload/
+          cd build_output
+          zip -r -9 HD2020_LED_Studio_iOS.ipa Payload
+          rm -rf Payload
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HD2020_LED_Studio_IPA
+          path: ./build_output/HD2020_LED_Studio_iOS.ipa
+
+      - name: Attach IPA to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: ./build_output/HD2020_LED_Studio_iOS.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
