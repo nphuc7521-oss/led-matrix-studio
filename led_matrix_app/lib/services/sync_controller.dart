@@ -101,6 +101,7 @@ class SyncController extends ChangeNotifier {
   }
 
   void addLog(String msg) {
+    debugPrint(msg);
     logs.add(msg);
     if (logs.length > 80) logs.removeAt(0);
     currentStatus = msg;
@@ -140,9 +141,13 @@ class SyncController extends ChangeNotifier {
       );
 
       if (sent) {
-        addLog('===> [THÀNH CÔNG] ${board.name} đã lưu và hiển thị chữ "${board.text}"!');
+        addLog(
+          '===> [THÀNH CÔNG] ${board.name} đã lưu và hiển thị chữ "${board.text}"!',
+        );
       } else {
-        addLog('[HƯỚNG DẪN] Chưa nhận được phản hồi từ ${board.name}. Hãy vào Cài đặt Wi-Fi -> Kết nối vào "${board.ssid}" (MK: 88888888) rồi bấm Nạp lại!');
+        addLog(
+          '[HƯỚNG DẪN] Chưa nhận được phản hồi từ ${board.name}. Hãy vào Cài đặt Wi-Fi -> Kết nối vào "${board.ssid}" (MK: 88888888) rồi bấm Nạp lại!',
+        );
         await WifiService.openWifiSettings();
       }
 
@@ -194,7 +199,9 @@ class SyncController extends ChangeNotifier {
 
         if (success) {
           successCount++;
-          addLog('===> [XONG BẢNG ${i + 1}] ${board.name} đã hiển thị chữ "${board.text}"!');
+          addLog(
+            '===> [XONG BẢNG ${i + 1}] ${board.name} đã hiển thị chữ "${board.text}"!',
+          );
         } else {
           addLog('[CẢNH BÁO] Chưa nạp được ${board.name} (${board.ssid}).');
         }
@@ -202,14 +209,15 @@ class SyncController extends ChangeNotifier {
         addLog('  [LỖI BẢNG ${i + 1}] $e');
       }
 
-      // Giải phóng kênh Wi-Fi của bảng vừa nạp xong trước khi chuyển sang bảng kế tiếp
-      await WifiService.disconnectWifi(board.ssid);
+      // Không gọi disconnectWifi giữa các bảng (i < total - 1) để tránh Android tự động nhảy về mạng tổng (Van Phong) giữa chừng gây kẹt khi chuyển sang Bảng 2!
       progress = (i + 1) / total;
       notifyListeners();
-      await Future.delayed(const Duration(milliseconds: 500));
+      if (i < total - 1) {
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
     }
 
-    // Sau khi đồng bộ xong 3 bảng, ngắt toàn bộ liên kết tạm thời với card WF2 để điện thoại tự động quay về mạng Wi-Fi tổng (ví dụ: Van Phong)
+    // Sau khi đồng bộ xong cả 3 bảng, ngắt liên kết tạm thời với card WF2 để điện thoại tự động quay về mạng Wi-Fi tổng (ví dụ: Van Phong)
     addLog('>>> [MẠNG TỔNG] Đang trả kết nối điện thoại về mạng Wi-Fi chính...');
     await WifiService.disconnectWifi('');
     await Future.delayed(const Duration(milliseconds: 400));
@@ -221,7 +229,9 @@ class SyncController extends ChangeNotifier {
     } else {
       addLog('=== [ĐỒNG BỘ XONG] Thành công $successCount/$total bảng. ===');
       if (successCount < total) {
-        addLog('💡 Mẹo: Khi hộp thoại kết nối Wi-Fi hiện lên, hãy bấm "Kết nối", hoặc chọn từng Bảng (1, 2, 3) -> Bấm "NẠP RIÊNG BẢNG NÀY"!');
+        addLog(
+          '💡 Mẹo: Khi hộp thoại kết nối Wi-Fi hiện lên, hãy bấm "Kết nối", hoặc chọn từng Bảng (1, 2, 3) -> Bấm "NẠP RIÊNG BẢNG NÀY"!',
+        );
       }
     }
     notifyListeners();

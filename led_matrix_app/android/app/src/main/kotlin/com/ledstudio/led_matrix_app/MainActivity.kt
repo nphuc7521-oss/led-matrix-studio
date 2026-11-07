@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
-import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
@@ -62,8 +61,7 @@ class MainActivity: FlutterActivity() {
                 "connectWifi" -> {
                     val ssid = call.argument<String>("ssid") ?: ""
                     val password = call.argument<String>("password") ?: "88888888"
-                    val force = call.argument<Boolean>("force") ?: false
-                    connectToWifi(ssid, password, force, result)
+                    connectToWifi(ssid, password, result)
                 }
                 "disconnectWifi" -> {
                     disconnectWifi()
@@ -103,16 +101,16 @@ class MainActivity: FlutterActivity() {
         try {
             val cm = connectivityManager ?: return false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                // Ưu tiên tuyệt đối network object vừa được cấp từ WifiNetworkSpecifier
                 val active = activeBoundNetwork
                 if (active != null) {
                     val caps = cm.getNetworkCapabilities(active)
                     if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                        return cm.bindProcessToNetwork(active)
+                        if (cm.bindProcessToNetwork(active)) {
+                            return true
+                        }
                     }
                 }
 
-                // Duyệt ngược từ mạng mới nhất (netId cao nhất) về cũ nhất để tránh bắt nhầm netId cũ bị treo DHCP NAK
                 var targetNet: Network? = null
                 for (network in cm.allNetworks.reversed()) {
                     val caps = cm.getNetworkCapabilities(network)
@@ -172,11 +170,11 @@ class MainActivity: FlutterActivity() {
         return false
     }
 
-    private fun connectToWifi(ssid: String, pass: String, force: Boolean, result: MethodChannel.Result) {
+    private fun connectToWifi(ssid: String, pass: String, result: MethodChannel.Result) {
         requestWifiPermissionsIfNeeded()
 
         val currentSsid = getCurrentWifiSsid()
-        if (!force && currentSsid.isNotEmpty() && currentSsid.equals(ssid, ignoreCase = true) && hasActiveCardIp()) {
+        if (currentSsid.isNotEmpty() && currentSsid.equals(ssid, ignoreCase = true) && hasActiveCardIp()) {
             bindCurrentWifi()
             result.success(true)
             return
@@ -184,7 +182,7 @@ class MainActivity: FlutterActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
-                // Hủy đăng ký callback cũ trước khi yêu cầu mạng mới để tránh rò rỉ hoặc kẹt kết nối
+                // Hủy đăng ký callback cũ ngay trước khi yêu cầu mạng mới (không tạo khoảng trễ trống để tránh MIUI tự bắt lại Wi-Fi tổng giữa 2 bảng)
                 disconnectWifi()
 
                 val specifier = WifiNetworkSpecifier.Builder()
@@ -204,32 +202,14 @@ class MainActivity: FlutterActivity() {
                         super.onAvailable(network)
                         activeBoundNetwork = network
                         connectivityManager?.bindProcessToNetwork(network)
-                        // Chờ tối đa 1500ms nếu onLinkPropertiesChanged chưa kích hoạt để đảm bảo DHCP 192.168.4.x hoàn tất
-                        mainHandler.postDelayed({
-                            if (!hasResponded) {
-                                hasResponded = true
-                                activeBoundNetwork = network
-                                connectivityManager?.bindProcessToNetwork(network)
-                                result.success(true)
-                            }
-                        }, 1500)
-                    }
-
-                    override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
-                        super.onLinkPropertiesChanged(network, linkProperties)
-                        activeBoundNetwork = network
-                        connectivityManager?.bindProcessToNetwork(network)
-                        val hasCardIp = linkProperties.linkAddresses.any {
-                            it.address.hostAddress?.startsWith("192.168.4.") == true
-                        }
-                        if (hasCardIp && !hasResponded) {
+                        if (!hasResponded) {
                             hasResponded = true
-                            // Đợi 450ms sau khi nhận IP 192.168.4.x để MIUI ConnectivityService hoàn tất Adding iface wlan0 to network
+                            // Chờ 350ms sau onAvailable (khi ConnectivityService đã gán xong wlan0 và NetReassign) rồi khóa chặt route vào network này
                             mainHandler.postDelayed({
                                 activeBoundNetwork = network
                                 connectivityManager?.bindProcessToNetwork(network)
                                 result.success(true)
-                            }, 450)
+                            }, 350)
                         }
                     }
 
@@ -251,8 +231,8 @@ class MainActivity: FlutterActivity() {
                 }
 
                 currentCallback = callback
-                // Timeout 15 giây để người dùng đủ thời gian bấm "Kết nối" trên hộp thoại hệ thống Android/MIUI và nhận DHCP
-                connectivityManager?.requestNetwork(request, callback, 15000)
+                // Timeout 8.5 giây mỗi lượt (nếu bị kẹt chuyển mạng, tầng Dart sẽ tự động gọi lượt 2 ngay lập tức)
+                connectivityManager?.requestNetwork(request, callback, 8500)
             } catch (e: Exception) {
                 bindCurrentWifi()
                 result.success(false)
