@@ -93,6 +93,13 @@ class SyncController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateCurrentBoardDimensions(int width, int height) {
+    currentBoard.width = width;
+    currentBoard.height = height;
+    addLog('📐 Cập nhật độ phân giải ${currentBoard.name}: ${width}x$height px');
+    notifyListeners();
+  }
+
   void updateBoard(int index, LedBoard updated) {
     if (index >= 0 && index < boards.length) {
       boards[index] = updated;

@@ -7,6 +7,10 @@ class LedBoard {
   int port;
   String? guid;
 
+  // Kích thước điểm ảnh (Độ phân giải LED Matrix: Rộng x Cao)
+  int width; // 64, 96, 128, 160, 192, 256...
+  int height; // 16, 32, 48, 64...
+
   // Thuộc tính hiển thị & văn bản chuẩn Studio V18
   String text;
   String color; // 'green', 'red', 'yellow', 'blue', 'cyan', 'magenta', 'white'
@@ -33,6 +37,8 @@ class LedBoard {
     this.ip = '192.168.4.1',
     this.port = 6101,
     this.guid,
+    this.width = 64,
+    this.height = 32,
     this.text = '',
     this.color = 'green',
     this.fontFamily = 'Arial',

@@ -62,10 +62,12 @@ class HuiduProtocol {
     return packet;
   }
 
-  /// Template nhị phân 66 bytes chuẩn của `screen.hds` (được trích xuất từ HDSDK)
-  static Uint8List getScreenHds() {
+  /// Template nhị phân 66 bytes chuẩn của `screen.hds` (được trích xuất từ HDSDK, hỗ trợ độ phân giải tùy biến)
+  static Uint8List getScreenHds([int width = 64, int height = 32]) {
     return Uint8List.fromList([
-      0x48, 0x53, 0x00, 0x42, 0x00, 0x40, 0x00, 0x20,
+      0x48, 0x53, 0x00, 0x42,
+      (width >> 8) & 0xFF, width & 0xFF,
+      (height >> 8) & 0xFF, height & 0xFF,
       0x00, 0x01, 0x02, 0x06, 0x00, 0x54, 0x60, 0x01,
       0x35, 0x60, 0x00, 0x00, 0x00, 0x31, 0x31, 0x31,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -536,9 +538,11 @@ class HuiduProtocol {
     required bool italic,
     required bool underline,
     required bool hasBorder,
+    int width = 64,
+    int height = 32,
   }) async {
-    final int safeW = hasBorder ? 60 : 62;
-    final int safeH = hasBorder ? 28 : 30;
+    final int safeW = hasBorder ? max(1, width - 4) : max(1, width - 2);
+    final int safeH = hasBorder ? max(1, height - 4) : max(1, height - 2);
     final String cleanText =
         text.replaceAll('\r\n', '\n').trim();
     if (cleanText.isEmpty) {
@@ -562,9 +566,12 @@ class HuiduProtocol {
         .where((w) => w.isNotEmpty)
         .toList();
 
-    // 1. Thử kết xuất trên 1 dòng nếu không có xuống dòng thủ công và độ dài vừa phải (<= 9 ký tự hoặc 1 từ)
+    // 1. Thử kết xuất trên 1 dòng nếu không có xuống dòng thủ công
+    // Hoặc nếu màn hình thấp (< 24px) không đủ chia 2 dòng
+    // Hoặc nếu text ngắn (<= 9 ký tự hoặc 1 từ)
+    // Hoặc nếu màn hình đủ rộng để chứa trọn câu trên 1 dòng
     if (explicitLines.length == 1 &&
-        (words.length == 1 || singleLineText.characters.length <= 9)) {
+        (words.length == 1 || singleLineText.characters.length <= 9 || height < 24 || width >= 96)) {
       int curFontSize = fontSize.clamp(10, 24);
       TightTextMask bestSingle = const TightTextMask(
         width: 1,
@@ -587,8 +594,9 @@ class HuiduProtocol {
         }
         break;
       }
-      // Nếu vừa khít 1 dòng ở cỡ chữ >= 12 (hoặc chỉ có 1 từ duy nhất), dùng luôn 1 dòng
+      // Nếu vừa khít 1 dòng ở cỡ chữ >= 12 (hoặc chỉ có 1 từ duy nhất, hoặc chiều cao < 24px), dùng luôn 1 dòng
       if (words.length == 1 ||
+          height < 24 ||
           (bestSingle.width <= safeW &&
               bestSingle.height <= safeH &&
               curFontSize >= 12)) {
@@ -596,48 +604,50 @@ class HuiduProtocol {
       }
     }
 
-    // 2. Với cụm từ nhiều chữ dài (như "Siêu Nhân Vàng", "Siêu Nhân Đen", "Siêu Nhân Trắng"),
+    // 2. Với cụm từ nhiều chữ dài (như "Siêu Nhân Vàng", "Siêu Nhân Đen", "Siêu Nhân Trắng") trên màn hình cao >= 24px,
     // tự động bố cục 2 dòng cân đối để chữ to gấp đôi, rõ nét 100% và không bao giờ mất chữ cuối!
-    final List<String> twoLines = explicitLines.length >= 2
-        ? [explicitLines[0], explicitLines.sublist(1).join(' ')]
-        : _splitIntoTwoBalancedLines(singleLineText);
+    if (height >= 24) {
+      final List<String> twoLines = explicitLines.length >= 2
+          ? [explicitLines[0], explicitLines.sublist(1).join(' ')]
+          : _splitIntoTwoBalancedLines(singleLineText);
 
-    if (twoLines.length == 2) {
-      int curFontSize = min(fontSize.clamp(10, 24), 15);
-      TightTextMask bestTwoLine = const TightTextMask(
-        width: 1,
-        height: 1,
-        pixels: [false],
-        litCount: 0,
-      );
-
-      while (curFontSize >= 9) {
-        final m1 = await _renderSingleLineTight(
-          lineText: twoLines[0],
-          curFontSize: curFontSize,
-          bold: bold,
-          underline: underline,
-          safeW: safeW,
-        );
-        final m2 = await _renderSingleLineTight(
-          lineText: twoLines[1],
-          curFontSize: curFontSize,
-          bold: bold,
-          underline: underline,
-          safeW: safeW,
+      if (twoLines.length == 2) {
+        int curFontSize = min(fontSize.clamp(10, 24), 15);
+        TightTextMask bestTwoLine = const TightTextMask(
+          width: 1,
+          height: 1,
+          pixels: [false],
+          litCount: 0,
         );
 
-        final int lineGap = (m1.height + 2 + m2.height <= safeH) ? 2 : 1;
-        bestTwoLine = _combineTwoLines(m1, m2, lineGap);
+        while (curFontSize >= 9) {
+          final m1 = await _renderSingleLineTight(
+            lineText: twoLines[0],
+            curFontSize: curFontSize,
+            bold: bold,
+            underline: underline,
+            safeW: safeW,
+          );
+          final m2 = await _renderSingleLineTight(
+            lineText: twoLines[1],
+            curFontSize: curFontSize,
+            bold: bold,
+            underline: underline,
+            safeW: safeW,
+          );
 
-        if ((bestTwoLine.width > safeW || bestTwoLine.height > safeH) &&
-            curFontSize > 9) {
-          curFontSize--;
-          continue;
+          final int lineGap = (m1.height + 2 + m2.height <= safeH) ? 2 : 1;
+          bestTwoLine = _combineTwoLines(m1, m2, lineGap);
+
+          if ((bestTwoLine.width > safeW || bestTwoLine.height > safeH) &&
+              curFontSize > 9) {
+            curFontSize--;
+            continue;
+          }
+          break;
         }
-        break;
+        return bestTwoLine;
       }
-      return bestTwoLine;
     }
 
     // Dự phòng 1 dòng
@@ -651,15 +661,17 @@ class HuiduProtocol {
   }
 
   /// Render nội dung chữ tiếng Việt của Bảng thành mảng row-interleaved RGB bitmap chuẩn HDSDK:
-  /// Mỗi hàng y (0..height-1) gồm đúng 24 bytes: [8B Red, 8B Green, 8B Blue].
-  /// Khi có viền (width=62, height=30, areaX=1, areaY=1), mỗi điểm ảnh x (0..61) được dịch sang bit (x + 1) chuẩn HDSDK.
+  /// Mỗi hàng y (0..height-1) gồm [rowBytesPerColor R, rowBytesPerColor G, rowBytesPerColor B].
+  /// Khi có viền (areaX=1, areaY=1), mỗi điểm ảnh x được dịch sang bit (x + 1) chuẩn HDSDK.
   static Future<Uint8List> renderTextToRgbPlanes(
     LedBoard board, {
     required int width,
     required int height,
+    int? fullScreenWidth,
   }) async {
     final hasBorder = board.borderStyle > 0;
     final String rawText = board.text.trim().isEmpty ? ' ' : board.text.trim();
+    final int screenW = fullScreenWidth ?? board.width;
 
     final mask = await renderTightTextMask(
       text: rawText,
@@ -668,10 +680,12 @@ class HuiduProtocol {
       italic: board.italic,
       underline: board.underline,
       hasBorder: hasBorder,
+      width: width,
+      height: height,
     );
 
-    const int rowBytesPerColor = 8; // 64 bits = 8 bytes
-    const int rowStride = rowBytesPerColor * 3; // 24 bytes mỗi hàng (8R + 8G + 8B)
+    final int rowBytesPerColor = (screenW / 8).ceil();
+    final int rowStride = rowBytesPerColor * 3;
     final outBitmap = Uint8List(rowStride * height);
 
     final isRainbow = board.colorfulWords > 0;
@@ -687,6 +701,7 @@ class HuiduProtocol {
         outBitmap,
         width: width,
         height: height,
+        screenW: screenW,
         hasBorder: hasBorder,
         isRainbow: isRainbow,
         solidR: solidR,
@@ -734,9 +749,9 @@ class HuiduProtocol {
         final bool isLit = mask.pixels[ty * tightW + tx];
         if (!isLit) continue;
 
-        // Khi có viền (62x30 tại X=1, Y=1), HDSDK dịch bit sang phải 1 vị trí (bitPos = px + 1)
+        // Khi có viền, HDSDK dịch bit sang phải 1 vị trí (bitPos = px + 1)
         final int bitPos = hasBorder ? (px + 1) : px;
-        if (bitPos < 0 || bitPos >= 64) continue;
+        if (bitPos < 0 || bitPos >= screenW) continue;
 
         final int byteInRow = bitPos ~/ 8;
         final int bitMask = 0x80 >> (bitPos % 8);
@@ -744,12 +759,12 @@ class HuiduProtocol {
         if (isRainbow) {
           final rgb = _getRainbowRgb(board.colorfulWords, tx, ty, tightW, tightH);
           if (rgb[0] > 100) outBitmap[rowBase + byteInRow] |= bitMask;
-          if (rgb[1] > 100) outBitmap[rowBase + 8 + byteInRow] |= bitMask;
-          if (rgb[2] > 100) outBitmap[rowBase + 16 + byteInRow] |= bitMask;
+          if (rgb[1] > 100) outBitmap[rowBase + rowBytesPerColor + byteInRow] |= bitMask;
+          if (rgb[2] > 100) outBitmap[rowBase + rowBytesPerColor * 2 + byteInRow] |= bitMask;
         } else {
           if (solidR) outBitmap[rowBase + byteInRow] |= bitMask;
-          if (solidG) outBitmap[rowBase + 8 + byteInRow] |= bitMask;
-          if (solidB) outBitmap[rowBase + 16 + byteInRow] |= bitMask;
+          if (solidG) outBitmap[rowBase + rowBytesPerColor + byteInRow] |= bitMask;
+          if (solidB) outBitmap[rowBase + rowBytesPerColor * 2 + byteInRow] |= bitMask;
         }
       }
     }
@@ -826,6 +841,7 @@ class HuiduProtocol {
     Uint8List outBitmap, {
     required int width,
     required int height,
+    required int screenW,
     required bool hasBorder,
     required bool isRainbow,
     required bool solidR,
@@ -837,7 +853,7 @@ class HuiduProtocol {
     if (clean.isEmpty) return;
 
     final chars = clean.split('').map(_normalizeVietnameseChar).toList();
-    final int scale = chars.length <= 5 ? 2 : 1;
+    final int scale = (chars.length <= 5 && height >= 24) ? 2 : 1;
     final int charW = 5 * scale;
     final int charH = 7 * scale;
     final int spacing = scale;
@@ -846,8 +862,8 @@ class HuiduProtocol {
     int startX = max(1, (width - totalW) ~/ 2);
     int startY = max(1, (height - charH) ~/ 2);
 
-    const int rowBytesPerColor = 8;
-    const int rowStride = rowBytesPerColor * 3;
+    final int rowBytesPerColor = (screenW / 8).ceil();
+    final int rowStride = rowBytesPerColor * 3;
 
     for (int ci = 0; ci < chars.length; ci++) {
       final ch = chars[ci];
@@ -870,7 +886,7 @@ class HuiduProtocol {
               if (px < 0 || px >= width) continue;
 
               final int bitPos = hasBorder ? (px + 1) : px;
-              if (bitPos < 0 || bitPos >= 64) continue;
+              if (bitPos < 0 || bitPos >= screenW) continue;
 
               final int byteInRow = bitPos ~/ 8;
               final int bitMask = 0x80 >> (bitPos % 8);
@@ -878,12 +894,12 @@ class HuiduProtocol {
               if (isRainbow) {
                 final rgb = _getRainbowRgb(colorfulWords, px, py, width, height);
                 if (rgb[0] > 100) outBitmap[rowBase + byteInRow] |= bitMask;
-                if (rgb[1] > 100) outBitmap[rowBase + 8 + byteInRow] |= bitMask;
-                if (rgb[2] > 100) outBitmap[rowBase + 16 + byteInRow] |= bitMask;
+                if (rgb[1] > 100) outBitmap[rowBase + rowBytesPerColor + byteInRow] |= bitMask;
+                if (rgb[2] > 100) outBitmap[rowBase + rowBytesPerColor * 2 + byteInRow] |= bitMask;
               } else {
                 if (solidR) outBitmap[rowBase + byteInRow] |= bitMask;
-                if (solidG) outBitmap[rowBase + 8 + byteInRow] |= bitMask;
-                if (solidB) outBitmap[rowBase + 16 + byteInRow] |= bitMask;
+                if (solidG) outBitmap[rowBase + rowBytesPerColor + byteInRow] |= bitMask;
+                if (solidB) outBitmap[rowBase + rowBytesPerColor * 2 + byteInRow] |= bitMask;
               }
             }
           }
@@ -895,6 +911,8 @@ class HuiduProtocol {
   /// Sinh gói tin nhị phân `progam.hds` hoàn chỉnh nạp vào card (khớp 100% từng byte với HDSDK.dll)
   static Uint8List buildProgamHds(LedBoard board, Uint8List rgbPlanes) {
     final hasBorder = board.borderStyle > 0;
+    final int width = board.width;
+    final int height = board.height;
 
     // Header 1: HC (Chunk Header) - 29 bytes
     final hc = [
@@ -915,9 +933,10 @@ class HuiduProtocol {
 
     final speed = board.speed.clamp(1, 20);
     final stay = board.stayTime.clamp(1, 10);
+    final bitmapLen = rgbPlanes.length;
 
     if (!hasBorder) {
-      // === CHẾ ĐỘ TOÀN MÀN HÌNH 64x32 (KHÔNG VIỀN - Tổng 915 bytes) ===
+      // === CHẾ ĐỘ TOÀN MÀN HÌNH (KHÔNG VIỀN) ===
       // HP Header: 60 bytes (0x3C)
       final hp = [
         0x48, 0x50, 0x00, 0x33, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x51, 0x7F, 0x00, 0x00, 0x02, 0x58,
@@ -926,11 +945,21 @@ class HuiduProtocol {
         0x00, 0x01, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x3C, 0xFF, 0xFF, 0xFF, 0xFF
       ];
 
-      // HA Area Header: 58 bytes (Width = 64, Height = 32, X = 0, Y = 0, BitmapLen = 0x0300 = 768)
+      // HA Area Header: 58 bytes (Độ rộng, Chiều cao và Chiều dài Bitmap động theo cấu hình)
       final ha = [
-        0x48, 0x41, 0x00, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x20, 0x00, 0x01, 0x00, 0x00,
+        0x48, 0x41, 0x00, 0x19,
+        0x00, 0x00, // Area X = 0
+        0x00, 0x00, // Area Y = 0
+        (width >> 8) & 0xFF, width & 0xFF,   // Width (BE)
+        (height >> 8) & 0xFF, height & 0xFF, // Height (BE)
+        0x00, 0x01, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1D, 0x00, 0x16, 0x30,
-        0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x1D,
+        0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF,
+        (bitmapLen >> 24) & 0xFF,
+        (bitmapLen >> 16) & 0xFF,
+        (bitmapLen >> 8) & 0xFF,
+        bitmapLen & 0xFF, // BitmapLen (BE)
+        0x00, 0x00, 0x00, 0x1D,
         0x00, 0xFF, 0xFF,
         effCode & 0xFF,
         0xC9, // ClearType = 201 (Do not clear)
@@ -944,10 +973,10 @@ class HuiduProtocol {
       out.add(hc);
       out.add(hp);
       out.add(ha);
-      out.add(rgbPlanes); // 768 bytes
+      out.add(rgbPlanes);
       return out.toBytes();
     } else {
-      // === CHẾ ĐỘ VIỀN CHẠY ĐỘC LẬP (KHUNG CHỮ 62x30, VIỀN 64x1 - Tổng 900 bytes) ===
+      // === CHẾ ĐỘ VIỀN CHẠY ĐỘC LẬP ===
       final isAnti = board.borderMode.toLowerCase().contains('anti');
       final bMode = isAnti ? 1 : 0;
       final bSpeed = board.borderSpeed.clamp(1, 10);
@@ -965,16 +994,29 @@ class HuiduProtocol {
         bMode & 0xFF,   // Mode: 0 Clockwise, 1 Anti-clockwise
         bSpeed & 0xFF,  // Speed
         0x00, 0x18, 0x00, 0x00,
-        ...strip24Bytes, // 24 bytes dải viền 64x1
+        ...strip24Bytes, // 24 bytes dải viền 64x1 lặp quanh chu vi
         0x00, 0x00, 0x00, // ĐÚNG 3 bytes 0x00 trước 0x5D (tổng HP = 93 bytes = 0x5D)
         0x5D, 0xFF, 0xFF, 0xFF, 0xFF
       ];
 
-      // HA Area Header: 58 bytes (Width = 62 (0x003E), Height = 30 (0x001E), X = 1, Y = 1, BitmapLen = 0x02D0 = 720)
+      final areaW = max(1, width - 2);
+      final areaH = max(1, height - 2);
+
+      // HA Area Header: 58 bytes (Dynamic Area Width, Area Height, BitmapLen)
       final haBorder = [
-        0x48, 0x41, 0x00, 0x19, 0x00, 0x01, 0x00, 0x01, 0x00, 0x3E, 0x00, 0x1E, 0x00, 0x01, 0x00, 0x00,
+        0x48, 0x41, 0x00, 0x19,
+        0x00, 0x01, // Area X = 1
+        0x00, 0x01, // Area Y = 1
+        (areaW >> 8) & 0xFF, areaW & 0xFF,   // Area Width (BE)
+        (areaH >> 8) & 0xFF, areaH & 0xFF,   // Area Height (BE)
+        0x00, 0x01, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1D, 0x00, 0x16, 0x30,
-        0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0x00, 0x00, 0x02, 0xD0, 0x00, 0x00, 0x00, 0x1D,
+        0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF,
+        (bitmapLen >> 24) & 0xFF,
+        (bitmapLen >> 16) & 0xFF,
+        (bitmapLen >> 8) & 0xFF,
+        bitmapLen & 0xFF, // BitmapLen (BE)
+        0x00, 0x00, 0x00, 0x1D,
         0x00, 0xFF, 0xFF,
         effCode & 0xFF,
         0xC9,
@@ -988,7 +1030,7 @@ class HuiduProtocol {
       out.add(hc);
       out.add(hpBorder);
       out.add(haBorder);
-      out.add(rgbPlanes); // 720 bytes
+      out.add(rgbPlanes);
       return out.toBytes();
     }
   }
@@ -996,17 +1038,22 @@ class HuiduProtocol {
   /// Tạo toàn bộ 4 gói tin TCP chuẩn HDSDK (Cmd 0x13, 0x02, 0x03, 0x04) sẵn sàng bắn tới card
   static Future<List<Uint8List>> generateBoardPackets(LedBoard board) async {
     final hasBorder = board.borderStyle > 0;
-    final int w = hasBorder ? 62 : 64;
-    final int h = hasBorder ? 30 : 32;
+    final int w = hasBorder ? max(1, board.width - 2) : board.width;
+    final int h = hasBorder ? max(1, board.height - 2) : board.height;
 
     // 1. Render văn bản tiếng Việt thành mảng row-interleaved RGB chuẩn HDSDK
-    final rgbPlanes = await renderTextToRgbPlanes(board, width: w, height: h);
+    final rgbPlanes = await renderTextToRgbPlanes(
+      board,
+      width: w,
+      height: h,
+      fullScreenWidth: board.width,
+    );
 
     // 2. Tạo nội dung tệp progam.hds
     final progamHds = buildProgamHds(board, rgbPlanes);
 
     // 3. Tạo nội dung tệp screen.hds (bắt buộc gửi để khởi tạo phiên giao tiếp TCP trên card)
-    final screenHds = getScreenHds();
+    final screenHds = getScreenHds(board.width, board.height);
 
     final transferId = Random().nextInt(0xFFFE) + 1;
 

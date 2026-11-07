@@ -111,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _checkAndUpdateMask(LedBoard b) {
     final key =
-        '${b.id}_${b.text}_${b.fontSize}_${b.bold}_${b.italic}_${b.underline}_${b.borderStyle > 0}';
+        '${b.id}_${b.text}_${b.fontSize}_${b.bold}_${b.italic}_${b.underline}_${b.borderStyle > 0}_${b.width}x${b.height}';
     if (key != _lastMaskKey) {
       _lastMaskKey = key;
       if (_maskCache.containsKey(key)) {
@@ -125,6 +125,8 @@ class _HomeScreenState extends State<HomeScreen>
         italic: b.italic,
         underline: b.underline,
         hasBorder: b.borderStyle > 0,
+        width: b.width,
+        height: b.height,
       ).then((mask) {
         if (_maskCache.length > 30) {
           _maskCache.clear();
@@ -222,27 +224,32 @@ class _HomeScreenState extends State<HomeScreen>
 
                   const SizedBox(height: 12),
 
-                  // 2. MÔ PHỎNG MÀN HÌNH LED 64x32
+                  // 2. MÔ PHỎNG MÀN HÌNH LED (ĐỘ PHÂN GIẢI ĐỘNG)
                   _buildSimulatorSection(currentBoard),
 
                   const SizedBox(height: 14),
 
-                  // 3. SOẠN THẢO VĂN BẢN (TYPOGRAPHY & TEXT)
+                  // 3. CẤU HÌNH ĐỘ PHÂN GIẢI BẢNG LED (THỊ TRƯỜNG & TÙY CHỈNH)
+                  _buildResolutionSection(syncController, currentBoard),
+
+                  const SizedBox(height: 14),
+
+                  // 4. SOẠN THẢO VĂN BẢN (TYPOGRAPHY & TEXT)
                   _buildTypographySection(syncController, currentBoard),
 
                   const SizedBox(height: 14),
 
-                  // 4. HIỆU ỨNG CHUYỂN ĐỘNG & TỐC ĐỘ (MOTION)
+                  // 5. HIỆU ỨNG CHUYỂN ĐỘNG & TỐC ĐỘ (MOTION)
                   _buildMotionSection(syncController, currentBoard),
 
                   const SizedBox(height: 14),
 
-                  // 5. VIỀN CHẠY ĐỘC LẬP (RUN BORDER)
+                  // 6. VIỀN CHẠY ĐỘC LẬP (RUN BORDER)
                   _buildRunBorderSection(syncController, currentBoard),
 
                   const SizedBox(height: 14),
 
-                  // 6. NHẬT KÝ ĐIỀU KHIỂN (CONSOLE LOGS)
+                  // 7. NHẬT KÝ ĐIỀU KHIỂN (CONSOLE LOGS)
                   _buildLogsSection(syncController),
 
                   const SizedBox(height: 20),
@@ -325,6 +332,24 @@ class _HomeScreenState extends State<HomeScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF06B6D4).withOpacity(0.15)
+                          : const Color(0xFF1F2937),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${b.width} × ${b.height}',
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? const Color(0xFF06B6D4) : const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
                   Text(
                     b.text.isEmpty ? '(Trống)' : b.text,
                     style: TextStyle(
@@ -366,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen>
                   const Icon(Icons.tv, size: 14, color: Color(0xFF06B6D4)),
                   const SizedBox(width: 6),
                   Text(
-                    'MÔ PHỎNG: ${b.name} (64 × 32 px)',
+                    'MÔ PHỎNG: ${b.name} (${b.width} × ${b.height} px)',
                     style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
@@ -413,51 +438,64 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           const SizedBox(height: 8),
 
-          // KHUNG MÀN HÌNH LED VỚI ỐC VÍT 4 GÓC
+          // KHUNG MÀN HÌNH LED VỚI ỐC VÍT 4 GÓC (Tự co giãn tỷ lệ theo độ phân giải)
           Center(
-            child: Container(
-              width: 320,
-              height: 160,
-              decoration: BoxDecoration(
-                color: const Color(0xFF06070A),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF33435E), width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.6),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // 4 Ốc vít ở 4 góc
-                  _buildScrew(top: 4, left: 4),
-                  _buildScrew(top: 4, right: 4),
-                  _buildScrew(bottom: 4, left: 4),
-                  _buildScrew(bottom: 4, right: 4),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final double maxBoxW = min(constraints.maxWidth, 330.0);
+                final double screenRatio = b.width / b.height;
+                double simW = maxBoxW;
+                double simH = (simW / screenRatio).clamp(70.0, 220.0);
+                if (screenRatio < 1.0) {
+                  simH = 200.0;
+                  simW = (simH * screenRatio).clamp(100.0, maxBoxW);
+                }
 
-                  // Màn hình chấm LED CustomPaint
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: AnimatedBuilder(
-                        animation: _animController,
-                        builder: (context, _) {
-                          return CustomPaint(
-                            painter: LedSimulatorPainter(
-                              board: b,
-                              animProgress: _isSimPaused ? 0.5 : _animController.value,
-                              mask: _currentMask,
-                            ),
-                          );
-                        },
+                return Container(
+                  width: simW,
+                  height: simH,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF06070A),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF33435E), width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.6),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                  child: Stack(
+                    children: [
+                      // 4 Ốc vít ở 4 góc
+                      _buildScrew(top: 4, left: 4),
+                      _buildScrew(top: 4, right: 4),
+                      _buildScrew(bottom: 4, left: 4),
+                      _buildScrew(bottom: 4, right: 4),
+
+                      // Màn hình chấm LED CustomPaint
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: AnimatedBuilder(
+                            animation: _animController,
+                            builder: (context, _) {
+                              return CustomPaint(
+                                painter: LedSimulatorPainter(
+                                  board: b,
+                                  animProgress: _isSimPaused ? 0.5 : _animController.value,
+                                  mask: _currentMask,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
 
@@ -472,9 +510,9 @@ class _HomeScreenState extends State<HomeScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                const Text(
-                  '⚡ 64 × 32',
-                  style: TextStyle(
+                Text(
+                  '⚡ ${b.width} × ${b.height}',
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF06B6D4),
@@ -519,7 +557,397 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // =========================================================================
-  // 3. SOẠN THẢO VĂN BẢN (TYPOGRAPHY)
+  // 3. CẤU HÌNH ĐỘ PHÂN GIẢI BẢNG LED (RESOLUTION CHO TỪNG BẢNG HOẶC TẤT CẢ)
+  // =========================================================================
+  Widget _buildResolutionSection(SyncController sync, LedBoard b) {
+    final standardPresets = [
+      {'label': '64 × 32 px (1 tấm P4/P5)', 'w': 64, 'h': 32},
+      {'label': '96 × 32 px (1.5 tấm P5 / 3 tấm P10)', 'w': 96, 'h': 32},
+      {'label': '128 × 32 px (2 tấm P4/P5 ngang)', 'w': 128, 'h': 32},
+      {'label': '160 × 32 px (5 tấm P10)', 'w': 160, 'h': 32},
+      {'label': '192 × 32 px (3 tấm P4/P5 ngang)', 'w': 192, 'h': 32},
+      {'label': '256 × 32 px (4 tấm P4/P5 ngang)', 'w': 256, 'h': 32},
+      {'label': '320 × 32 px (5 tấm P4/P5 ngang)', 'w': 320, 'h': 32},
+      {'label': '64 × 16 px (2 tấm P10)', 'w': 64, 'h': 16},
+      {'label': '96 × 16 px (3 tấm P10)', 'w': 96, 'h': 16},
+      {'label': '128 × 16 px (4 tấm P10)', 'w': 128, 'h': 16},
+      {'label': '160 × 16 px (5 tấm P10)', 'w': 160, 'h': 16},
+      {'label': '192 × 16 px (6 tấm P10)', 'w': 192, 'h': 16},
+      {'label': '256 × 16 px (8 tấm P10)', 'w': 256, 'h': 16},
+      {'label': '64 × 64 px (2 tấm vuông P4/P5)', 'w': 64, 'h': 64},
+      {'label': '128 × 64 px (4 tấm P4/P5: 2×2)', 'w': 128, 'h': 64},
+      {'label': '192 × 64 px (6 tấm P4/P5: 3×2)', 'w': 192, 'h': 64},
+      {'label': '256 × 64 px (8 tấm P4/P5: 4×2)', 'w': 256, 'h': 64},
+    ];
+
+    final currentKey = '${b.width}x${b.height}';
+    final bool isKnownPreset =
+        standardPresets.any((p) => '${p['w']}x${p['h']}' == currentKey);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF243248)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.aspect_ratio, size: 14, color: Color(0xFF06B6D4)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Độ Phân Giải: ${b.name}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF8FAFC),
+                    ),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => _showCustomResolutionDialog(context, sync, b),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF182234),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: const Color(0xFF06B6D4).withOpacity(0.5),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.edit, size: 11, color: Color(0xFF06B6D4)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Nhập số đo...',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF06B6D4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Dropdown chọn nhanh các kích cỡ phổ biến
+          Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF182234),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF243248)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: isKnownPreset ? currentKey : 'custom',
+                isExpanded: true,
+                dropdownColor: const Color(0xFF182234),
+                style: const TextStyle(fontSize: 11.5, color: Color(0xFFF8FAFC)),
+                items: [
+                  ...standardPresets.map((p) {
+                    final key = '${p['w']}x${p['h']}';
+                    return DropdownMenuItem(
+                      value: key,
+                      child: Text('${p['label']}'),
+                    );
+                  }),
+                  DropdownMenuItem(
+                    value: 'custom',
+                    child: Text(
+                      isKnownPreset
+                          ? '⚙ Tùy chỉnh kích thước khác...'
+                          : '⚙ Tùy chỉnh: ${b.width} × ${b.height} px',
+                      style: const TextStyle(
+                        color: Color(0xFF06B6D4),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val == null) return;
+                  if (val == 'custom') {
+                    _showCustomResolutionDialog(context, sync, b);
+                  } else {
+                    final parts = val.split('x');
+                    final nw = int.tryParse(parts[0]) ?? 64;
+                    final nh = int.tryParse(parts[1]) ?? 32;
+                    _maskCache.clear();
+                    sync.updateCurrentBoardDimensions(nw, nh);
+                  }
+                },
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Các nút chọn nhanh (Quick chips)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildQuickResolutionChip(sync, b, 64, 32, '64×32'),
+                _buildQuickResolutionChip(sync, b, 96, 32, '96×32'),
+                _buildQuickResolutionChip(sync, b, 128, 32, '128×32'),
+                _buildQuickResolutionChip(sync, b, 160, 32, '160×32'),
+                _buildQuickResolutionChip(sync, b, 192, 32, '192×32'),
+                _buildQuickResolutionChip(sync, b, 256, 32, '256×32'),
+                _buildQuickResolutionChip(sync, b, 64, 16, '64×16'),
+                _buildQuickResolutionChip(sync, b, 96, 16, '96×16'),
+                _buildQuickResolutionChip(sync, b, 128, 16, '128×16'),
+                _buildQuickResolutionChip(sync, b, 64, 64, '64×64'),
+                _buildQuickResolutionChip(sync, b, 128, 64, '128×64'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickResolutionChip(
+    SyncController sync,
+    LedBoard b,
+    int w,
+    int h,
+    String label,
+  ) {
+    final bool isSelected = b.width == w && b.height == h;
+    return GestureDetector(
+      onTap: () {
+        _maskCache.clear();
+        sync.updateCurrentBoardDimensions(w, h);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF06B6D4).withOpacity(0.2)
+              : const Color(0xFF182234),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF06B6D4) : const Color(0xFF33435E),
+            width: isSelected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? const Color(0xFF06B6D4) : const Color(0xFF94A3B8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCustomResolutionDialog(
+    BuildContext context,
+    SyncController sync,
+    LedBoard b,
+  ) {
+    final wCtrl = TextEditingController(text: b.width.toString());
+    final hCtrl = TextEditingController(text: b.height.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF111827),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Color(0xFF243248)),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.tune, color: Color(0xFF06B6D4), size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Tùy Chỉnh Kích Thước (${b.name})',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Nhập số điểm ảnh (pixel) ngang và dọc của bảng LED:',
+                style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: wCtrl,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Chiều Rộng (Width)',
+                        labelStyle: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 11,
+                        ),
+                        suffixText: 'px',
+                        suffixStyle: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 11,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF182234),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF33435E)),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      '×',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: hCtrl,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Chiều Cao (Height)',
+                        labelStyle: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 11,
+                        ),
+                        suffixText: 'px',
+                        suffixStyle: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 11,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF182234),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF33435E)),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF1E293B)),
+                ),
+                child: const Text(
+                  '💡 Lưu ý: Chiều rộng nên là bội số của 8 hoặc 16 (ví dụ: 64, 96, 128, 160, 192, 256...) để điểm ảnh thẳng hàng và sắc nét nhất.',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF06B6D4)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy', style: TextStyle(color: Color(0xFF94A3B8))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF06B6D4),
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () {
+                final nw = int.tryParse(wCtrl.text.trim()) ?? b.width;
+                final nh = int.tryParse(hCtrl.text.trim()) ?? b.height;
+                if (nw > 0 && nh > 0) {
+                  _maskCache.clear();
+                  sync.updateCurrentBoardDimensions(nw, nh);
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text(
+                'Lưu Cho Bảng Này',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                final nw = int.tryParse(wCtrl.text.trim()) ?? b.width;
+                final nh = int.tryParse(hCtrl.text.trim()) ?? b.height;
+                if (nw > 0 && nh > 0) {
+                  _maskCache.clear();
+                  for (int i = 0; i < sync.boards.length; i++) {
+                    sync.boards[i].width = nw;
+                    sync.boards[i].height = nh;
+                  }
+                  sync.notifyListeners();
+                  sync.addLog('📐 Đã áp dụng ${nw}x$nh px cho tất cả các bảng!');
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text(
+                'Áp dụng Cả 3 Bảng',
+                style: TextStyle(color: Color(0xFF10B981), fontSize: 11),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // =========================================================================
+  // 4. SOẠN THẢO VĂN BẢN (TYPOGRAPHY)
   // =========================================================================
   Widget _buildTypographySection(SyncController sync, LedBoard b) {
     return Container(
@@ -1385,6 +1813,8 @@ class SimTextMask {
     required bool italic,
     required bool underline,
     bool hasBorder = true,
+    int width = 64,
+    int height = 32,
   }) async {
     final tight = await HuiduProtocol.renderTightTextMask(
       text: text,
@@ -1393,6 +1823,8 @@ class SimTextMask {
       italic: italic,
       underline: underline,
       hasBorder: hasBorder,
+      width: width,
+      height: height,
     );
     return SimTextMask(
       width: tight.width,
@@ -1404,7 +1836,7 @@ class SimTextMask {
 }
 
 // =========================================================================
-// CUSTOM PAINTER: MÔ PHỎNG CHẤM LED MA TRẬN 64x32 CHUẨN XÁC 100% NHƯ WEB V18
+// CUSTOM PAINTER: MÔ PHỎNG CHẤM LED MA TRẬN ĐỘ PHÂN GIẢI ĐỘNG CHUẨN XÁC 100% NHƯ WEB V18
 // =========================================================================
 class LedSimulatorPainter extends CustomPainter {
   final LedBoard board;
@@ -1419,8 +1851,8 @@ class LedSimulatorPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const int cols = 64;
-    const int rows = 32;
+    final int cols = board.width;
+    final int rows = board.height;
 
     final dotWidth = size.width / cols;
     final dotHeight = size.height / rows;
@@ -1466,22 +1898,22 @@ class LedSimulatorPainter extends CustomPainter {
       final borderPalette = borderPaletteMap[board.borderStyle] ?? borderPaletteMap[1]!;
       final cw = board.borderMode != 'Anti-clockwise';
       final bTick = (animProgress * 60).toInt();
-      const perimeterPixels = (64 + 30) * 2; // 188 pixels
+      final perimeterPixels = (cols + (rows - 2)) * 2;
 
       for (int pos = 0; pos < perimeterPixels; pos++) {
         int bx = 0, by = 0;
-        if (pos < 64) {
+        if (pos < cols) {
           bx = pos;
           by = 0;
-        } else if (pos < 64 + 30) {
-          bx = 63;
-          by = 1 + (pos - 64);
-        } else if (pos < 64 + 30 + 64) {
-          bx = 63 - (pos - 94);
-          by = 31;
+        } else if (pos < cols + (rows - 2)) {
+          bx = cols - 1;
+          by = 1 + (pos - cols);
+        } else if (pos < cols + (rows - 2) + cols) {
+          bx = (cols - 1) - (pos - (cols + rows - 2));
+          by = rows - 1;
         } else {
           bx = 0;
-          by = 30 - (pos - 158);
+          by = (rows - 2) - (pos - (cols * 2 + rows - 2));
         }
 
         final shiftedPos = cw
