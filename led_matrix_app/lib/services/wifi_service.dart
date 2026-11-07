@@ -74,6 +74,24 @@ class WifiService {
     } catch (_) {}
   }
 
+  /// Đánh thức bảng định tuyến ARP của Android cho IP 192.168.4.1 trước khi mở kết nối TCP,
+  /// ngăn chặn hoàn toàn lỗi gói TCP SYN đầu tiên bị rớt do chưa có MAC trong /proc/net/arp
+  static Future<void> _warmupArp(String ip, int port) async {
+    RawDatagramSocket? udp;
+    try {
+      udp = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      udp.send(const [0x00], InternetAddress(ip), port);
+      await Future.delayed(const Duration(milliseconds: 200));
+      udp.send(const [0x00], InternetAddress(ip), port);
+      await Future.delayed(const Duration(milliseconds: 200));
+    } catch (_) {
+    } finally {
+      try {
+        udp?.close();
+      } catch (_) {}
+    }
+  }
+
   /// Bắn chuỗi 4 gói tin Huidu chuẩn (Cmd 0x13, 0x02, 0x03, 0x04) qua TCP 6101
   static Future<bool> sendPacketsToBoard({
     required String ip,
@@ -82,22 +100,26 @@ class WifiService {
     Function(String log)? onLog,
   }) async {
     await bindCurrentWifi();
+    await _warmupArp(ip, port);
 
     Socket? socket;
     try {
       onLog?.call('  [TCP] Mở kết nối tới $ip:$port...');
-      for (int attempt = 1; attempt <= 5; attempt++) {
+      // Mở 1 socket TCP duy nhất với timeout 4800ms để kernel Linux tự phát lại SYN trên cùng 1 cổng nguồn,
+      // tuyệt đối không mở chồng nhiều socket 2200ms gây kẹt cổng 6101 đơn luồng trên card HD-WF2!
+      for (int attempt = 1; attempt <= 2; attempt++) {
         try {
           await bindCurrentWifi();
           socket = await Socket.connect(
             ip,
             port,
-            timeout: const Duration(milliseconds: 2200),
+            timeout: const Duration(milliseconds: 4800),
           );
           break;
         } catch (e) {
-          if (attempt == 5) rethrow;
-          await Future.delayed(const Duration(milliseconds: 500));
+          if (attempt == 2) rethrow;
+          await _warmupArp(ip, port);
+          await Future.delayed(const Duration(milliseconds: 400));
         }
       }
       if (socket == null) {
@@ -134,9 +156,9 @@ class WifiService {
         bool ackOk = false;
         int errStatus = -1;
 
-        // Tuyệt đối chỉ gửi mỗi gói đúng 1 lần trên 1 kết nối TCP (không gửi lặp trên cùng socket tránh đụng độ ACK)
-        // và truyền nguyên khối (single contiguous write) để lwIP trên card HD-WF2 khớp đúng TotalLen!
-        const int maxWaitMs = 2500;
+        // Cho phép tối đa 4500ms cho 0x13, 0x02, 0x03 (vì khi card xóa sector SPI Flash ở lệnh 0x02 có thể mất 2.5s - 3.5s)
+        // Khi card phản hồi sớm (0.4s), vòng lặp thoát ngay lập tức nên không làm chậm tốc độ nạp!
+        final int maxWaitMs = (cmd == 0x04) ? 2500 : 4500;
 
         onLog?.call(
           '  [GỬI] Gói $cmdHex (Seq ${i + 1}/${packets.length}, ${pkt.length}B)...',
@@ -203,22 +225,22 @@ class WifiService {
           onLog?.call(
             '  [CẢNH BÁO] Card phản hồi mã lỗi 0x${errStatus.toRadixString(16).toUpperCase()} cho gói $cmdHex.',
           );
-          // Bắt buộc dừng ngay nếu bất kỳ gói khởi tạo (0x13, 0x02) hoặc dữ liệu (0x03) báo lỗi
-          if (cmd == 0x13 || cmd == 0x02 || cmd == 0x03) break;
+          if (cmd == 0x13 || cmd == 0x03) break;
         } else {
           onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã truyền đi.');
-          // TUYỆT ĐỐI DỪNG NGAY nếu 0x13, 0x02 hoặc 0x03 chưa có ACK OK!
-          // Không bao giờ được gửi gói chốt 0x04 (EndSendFile) khi gói 0x03 (dữ liệu progam.hds) chưa ACK OK,
-          // vì gửi 0x04 khi thiếu 0x03 sẽ làm card lưu file rỗng gây tối màn hình!
-          if (cmd == 0x13 || cmd == 0x02 || cmd == 0x03) break;
+          // Nếu gói 0x13 chưa có ACK OK thì dừng ngay (chưa gửi 0x02 nên card chưa xóa Flash).
+          // Nếu gói 0x13 ĐÃ ACK OK mà gói 0x02 bị trễ ACK trên sóng Wi-Fi, BẮT BUỘC phải gửi tiếp 0x03 và 0x04
+          // để lấp đầy dữ liệu progam.hds vừa được mở ở 0x02, tuyệt đối không bỏ dở sau 0x02 làm tối màn hình!
+          // Còn nếu gói 0x03 không có ACK OK thì dừng trước 0x04 để vòng ngoài tự động nạp lại.
+          if (cmd == 0x13 || cmd == 0x03) break;
         }
 
         await Future.delayed(const Duration(milliseconds: 60));
       }
 
-      // Chỉ thành công khi CẢ 3 gói 0x13, 0x02, 0x03 đều đã nhận ACK OK (status=0x00) và gói 0x04 đã được phát
+      // Thành công khi gói khởi tạo 0x13 và gói dữ liệu 0x03 đều đã nhận ACK OK (status=0x00) và gói 0x04 đã được phát
       final bool isSuccess =
-          cmd13AckOk && cmd02AckOk && cmd03AckOk && (cmd04AckOk || sent04);
+          cmd13AckOk && cmd03AckOk && (cmd04AckOk || sent04);
 
       // ĐẶC BIỆT QUAN TRỌNG: Sau gói Cmd 0x04 (Hoàn tất truyền file),
       // giữ nguyên kết nối TCP và Wi-Fi trong 1200ms (giống v1.0.31) để card ghi xong SPI flash
@@ -299,25 +321,21 @@ class WifiService {
     }
 
     var sent = false;
-    for (int tryIdx = 1; tryIdx <= 3; tryIdx++) {
+    for (int tryIdx = 1; tryIdx <= 4; tryIdx++) {
       if (tryIdx > 1) {
         onStatus(
-          '  [THỬ LẠI LẦN $tryIdx/3] Đang ổn định kênh truyền cho ${board.name}...',
+          '  [THỬ LẠI LẦN $tryIdx/4] Đang ổn định kênh truyền cho ${board.name}...',
         );
         final nowSsid = await getCurrentWifiSsid();
         if (tryIdx == 3 ||
             nowSsid.isEmpty ||
             nowSsid.toLowerCase() != board.ssid.toLowerCase()) {
-          // Ở lần thử thứ 3 (hoặc khi tuột sóng), làm mới lại phiên kết nối Wi-Fi/ARP tới card
-          if (tryIdx == 3) {
-            await disconnectWifi(board.ssid);
-            await Future.delayed(const Duration(milliseconds: 400));
-          }
+          // Ở lần thử thứ 3 (hoặc khi tuột sóng), gọi thẳng connectToBoardWifi (tuyệt đối không gọi disconnectWifi trước để tránh MIUI nhảy về mạng Van Phong giữa chừng!)
           await connectToBoardWifi(board.ssid, board.password);
           await Future.delayed(const Duration(milliseconds: 1400));
         } else {
-          // Ở lần thử thứ 2, giữ nguyên sóng Wi-Fi đang kết nối và mở lại socket TCP nhanh
-          await Future.delayed(const Duration(milliseconds: 800));
+          // Giữ nguyên sóng Wi-Fi đang kết nối và mở lại socket TCP
+          await Future.delayed(const Duration(milliseconds: 600));
         }
         await bindCurrentWifi();
       }

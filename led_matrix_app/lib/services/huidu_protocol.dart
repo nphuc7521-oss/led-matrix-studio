@@ -4,6 +4,20 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/board.dart';
 
+class TightTextMask {
+  final int width;
+  final int height;
+  final List<bool> pixels;
+  final int litCount;
+
+  const TightTextMask({
+    required this.width,
+    required this.height,
+    required this.pixels,
+    required this.litCount,
+  });
+}
+
 class HuiduProtocol {
   static const int screenWidth = 64;
   static const int screenHeight = 32;
@@ -216,6 +230,229 @@ class HuiduProtocol {
     return [...stripR, ...stripG, ...stripB];
   }
 
+  /// Kết xuất từng ký tự tiếng Việt độc lập với khoảng cách tách chữ rõ nét (tuyệt đối không dính chữ),
+  /// dùng chung 100% giữa màn hình mô phỏng trên App và dữ liệu nạp xuống bảng LED thực tế.
+  static Future<TightTextMask> renderTightTextMask({
+    required String text,
+    required int fontSize,
+    required bool bold,
+    required bool italic,
+    required bool underline,
+    required bool hasBorder,
+  }) async {
+    final int safeW = hasBorder ? 60 : 62;
+    final int safeH = hasBorder ? 28 : 30;
+    final String cleanText = text.trim();
+    if (cleanText.isEmpty) {
+      return const TightTextMask(
+        width: 1,
+        height: 1,
+        pixels: [false],
+        litCount: 0,
+      );
+    }
+
+    final List<String> graphemes =
+        cleanText.replaceAll('\r\n', ' ').replaceAll('\n', ' ').characters.toList();
+    int curFontSize = fontSize.clamp(10, 24);
+    const int cellW = 64;
+    const int cellH = 64;
+
+    List<List<bool>> finalCols = [];
+    int minY = 9999;
+    int maxY = -1;
+
+    while (curFontSize >= 8) {
+      final int alphaThreshold = curFontSize >= 14 ? 155 : 140;
+      final FontWeight weight = bold
+          ? (curFontSize >= 16 ? FontWeight.w600 : FontWeight.w500)
+          : FontWeight.w400;
+
+      final List<List<List<bool>>?> glyphColsList = [];
+
+      for (final String ch in graphemes) {
+        if (ch.trim().isEmpty) {
+          glyphColsList.add(null); // Khoảng trắng giữa các từ
+          continue;
+        }
+
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(
+          recorder,
+          const Rect.fromLTWH(0, 0, 64.0, 64.0),
+        );
+
+        final textStyle = TextStyle(
+          color: Colors.white,
+          fontSize: curFontSize.toDouble(),
+          fontWeight: weight,
+          fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+          height: 1.0,
+        );
+
+        final tp = TextPainter(
+          text: TextSpan(text: ch, style: textStyle),
+          textAlign: TextAlign.left,
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+        );
+        tp.layout();
+        tp.paint(canvas, const Offset(8, 8));
+
+        final picture = recorder.endRecording();
+        final image = await picture.toImage(cellW, cellH);
+        final byteData =
+            await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        final rgba = byteData!.buffer.asUint8List();
+
+        int cMinX = 9999;
+        int cMaxX = -1;
+        for (int x = 0; x < cellW; x++) {
+          for (int y = 0; y < cellH; y++) {
+            final idx = (y * cellW + x) * 4;
+            if (rgba[idx + 3] >= alphaThreshold) {
+              if (x < cMinX) cMinX = x;
+              if (x > cMaxX) cMaxX = x;
+            }
+          }
+        }
+
+        // Nếu nét quá mảnh ở cỡ chữ nhỏ, hạ nhẹ ngưỡng cho riêng ký tự đó để không mất dấu
+        int usedThreshold = alphaThreshold;
+        if (cMaxX < cMinX) {
+          usedThreshold = 95;
+          for (int x = 0; x < cellW; x++) {
+            for (int y = 0; y < cellH; y++) {
+              final idx = (y * cellW + x) * 4;
+              if (rgba[idx + 3] >= usedThreshold) {
+                if (x < cMinX) cMinX = x;
+                if (x > cMaxX) cMaxX = x;
+              }
+            }
+          }
+        }
+
+        if (cMaxX >= cMinX) {
+          final List<List<bool>> charCols = [];
+          for (int x = cMinX; x <= cMaxX; x++) {
+            final col = List<bool>.filled(cellH, false);
+            for (int y = 0; y < cellH; y++) {
+              final idx = (y * cellW + x) * 4;
+              if (rgba[idx + 3] >= usedThreshold) {
+                col[y] = true;
+              }
+            }
+            charCols.add(col);
+          }
+          glyphColsList.add(charCols);
+        }
+      }
+
+      // Tính chiều rộng khi ghép các ký tự với khoảng cách tách chữ rõ ràng (ưu tiên 2 cột tối nếu vừa khung, tối thiểu 1 cột tối)
+      int calcWidth(int letterGap, int spaceWidth) {
+        int w = 0;
+        bool prevWasChar = false;
+        for (final g in glyphColsList) {
+          if (g == null) {
+            w += spaceWidth;
+            prevWasChar = false;
+          } else {
+            if (prevWasChar) w += letterGap;
+            w += g.length;
+            prevWasChar = true;
+          }
+        }
+        return w;
+      }
+
+      int letterGap = 2;
+      int spaceWidth = 4;
+      if (calcWidth(letterGap, spaceWidth) > safeW) {
+        letterGap = 1;
+        spaceWidth = 3;
+      }
+
+      finalCols = [];
+      bool prevWasChar = false;
+      for (final g in glyphColsList) {
+        if (g == null) {
+          for (int s = 0; s < spaceWidth; s++) {
+            finalCols.add(List<bool>.filled(cellH, false));
+          }
+          prevWasChar = false;
+        } else {
+          if (prevWasChar) {
+            for (int s = 0; s < letterGap; s++) {
+              finalCols.add(List<bool>.filled(cellH, false));
+            }
+          }
+          finalCols.addAll(g);
+          prevWasChar = true;
+        }
+      }
+
+      minY = 9999;
+      maxY = -1;
+      for (int x = 0; x < finalCols.length; x++) {
+        final col = finalCols[x];
+        for (int y = 0; y < cellH; y++) {
+          if (col[y]) {
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (underline && maxY >= minY) {
+        final int ulY = min(cellH - 1, maxY + 2);
+        for (int x = 0; x < finalCols.length; x++) {
+          finalCols[x][ulY] = true;
+        }
+        maxY = ulY;
+      }
+
+      final int tw = finalCols.length;
+      final int th = (maxY >= minY) ? (maxY - minY + 1) : 0;
+
+      if ((th > safeH || tw > safeW) && curFontSize > 8) {
+        curFontSize--;
+        continue;
+      }
+      break;
+    }
+
+    if (finalCols.isEmpty || maxY < minY) {
+      return const TightTextMask(
+        width: 1,
+        height: 1,
+        pixels: [false],
+        litCount: 0,
+      );
+    }
+
+    final int tightW = finalCols.length;
+    final int tightH = maxY - minY + 1;
+    final List<bool> pixels = List<bool>.filled(tightW * tightH, false);
+    int litCount = 0;
+
+    for (int ty = 0; ty < tightH; ty++) {
+      final int srcY = minY + ty;
+      for (int tx = 0; tx < tightW; tx++) {
+        if (finalCols[tx][srcY]) {
+          pixels[ty * tightW + tx] = true;
+          litCount++;
+        }
+      }
+    }
+
+    return TightTextMask(
+      width: tightW,
+      height: tightH,
+      pixels: pixels,
+      litCount: litCount,
+    );
+  }
+
   /// Render nội dung chữ tiếng Việt của Bảng thành mảng row-interleaved RGB bitmap chuẩn HDSDK:
   /// Mỗi hàng y (0..height-1) gồm đúng 24 bytes: [8B Red, 8B Green, 8B Blue].
   /// Khi có viền (width=62, height=30, areaX=1, areaY=1), mỗi điểm ảnh x (0..61) được dịch sang bit (x + 1) chuẩn HDSDK.
@@ -225,84 +462,16 @@ class HuiduProtocol {
     required int height,
   }) async {
     final hasBorder = board.borderStyle > 0;
-    final int safeW = hasBorder ? 60 : 62;
-    final int safeH = hasBorder ? 28 : 30;
-
     final String rawText = board.text.trim().isEmpty ? ' ' : board.text.trim();
-    int curFontSize = board.fontSize.clamp(8, 28);
 
-    // Tự động co cỡ chữ vừa khít vùng hiển thị an toàn (giống hệt Web V18 GenerateLedBitmapPages)
-    const int scratchW = 512;
-    const int scratchH = 96;
-    Uint8List maskRgba = Uint8List(0);
-    int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
-
-    while (curFontSize >= 8) {
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(
-        recorder,
-        const Rect.fromLTWH(0, 0, 512.0, 96.0),
-      );
-
-      final textStyle = TextStyle(
-        color: Colors.white,
-        fontSize: curFontSize.toDouble(),
-        fontWeight: board.bold ? FontWeight.bold : FontWeight.normal,
-        fontStyle: board.italic ? FontStyle.italic : FontStyle.normal,
-        decoration:
-            board.underline ? TextDecoration.underline : TextDecoration.none,
-        height: 1.0,
-      );
-
-      final textPainter = TextPainter(
-        text: TextSpan(text: rawText, style: textStyle),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-        maxLines: rawText.contains('\n') ? 2 : 1,
-      );
-
-      textPainter.layout(maxWidth: scratchW.toDouble() - 16);
-      textPainter.paint(canvas, const Offset(8, 8));
-
-      final picture = recorder.endRecording();
-      final image = await picture.toImage(scratchW, scratchH);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      maskRgba = byteData!.buffer.asUint8List();
-
-      minX = 9999;
-      maxX = -1;
-      minY = 9999;
-      maxY = -1;
-
-      for (int y = 0; y < scratchH; y++) {
-        for (int x = 0; x < scratchW; x++) {
-          final idx = (y * scratchW + x) * 4;
-          final a = maskRgba[idx + 3];
-          final r = maskRgba[idx];
-          final g = maskRgba[idx + 1];
-          final b = maskRgba[idx + 2];
-          if (a > 30 || r > 50 || g > 50 || b > 50) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-        }
-      }
-
-      final int tw = (maxX >= minX) ? (maxX - minX + 1) : 0;
-      final int th = (maxY >= minY) ? (maxY - minY + 1) : 0;
-
-      if (th > safeH && curFontSize > 8) {
-        curFontSize--;
-        continue;
-      }
-      if (tw > safeW && curFontSize > 8) {
-        curFontSize--;
-        continue;
-      }
-      break;
-    }
+    final mask = await renderTightTextMask(
+      text: rawText,
+      fontSize: board.fontSize,
+      bold: board.bold,
+      italic: board.italic,
+      underline: board.underline,
+      hasBorder: hasBorder,
+    );
 
     const int rowBytesPerColor = 8; // 64 bits = 8 bytes
     const int rowStride = rowBytesPerColor * 3; // 24 bytes mỗi hàng (8R + 8G + 8B)
@@ -314,7 +483,7 @@ class HuiduProtocol {
     final bool solidG = solidBits[1];
     final bool solidB = solidBits[2];
 
-    if (maxX < minX || maskRgba.isEmpty) {
+    if (mask.litCount == 0) {
       // Fallback bitmap font dự phòng khẩn cấp nếu GPU offscreen không xuất pixel
       _renderFallbackBitmap(
         rawText,
@@ -331,11 +500,11 @@ class HuiduProtocol {
       return outBitmap;
     }
 
-    final int tightW = maxX - minX + 1;
-    final int tightH = maxY - minY + 1;
+    final int tightW = mask.width;
+    final int tightH = mask.height;
 
-    final int marginX = hasBorder ? 1 : 1;
-    final int marginY = hasBorder ? 1 : 1;
+    final int marginX = 1;
+    final int marginY = 1;
 
     int destX = (width - tightW) ~/ 2;
     if (board.alignH == 'left') {
@@ -365,13 +534,7 @@ class HuiduProtocol {
         final int px = destX + tx;
         if (px < 0 || px >= width) continue;
 
-        final int srcIdx = ((minY + ty) * scratchW + (minX + tx)) * 4;
-        final a = maskRgba[srcIdx + 3];
-        final r = maskRgba[srcIdx];
-        final g = maskRgba[srcIdx + 1];
-        final b = maskRgba[srcIdx + 2];
-        final bool isLit = (a > 30) || (r > 50 || g > 50 || b > 50);
-
+        final bool isLit = mask.pixels[ty * tightW + tx];
         if (!isLit) continue;
 
         // Khi có viền (62x30 tại X=1, Y=1), HDSDK dịch bit sang phải 1 vị trí (bitPos = px + 1)

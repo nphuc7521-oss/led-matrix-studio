@@ -109,7 +109,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _checkAndUpdateMask(LedBoard b) {
-    final key = '${b.id}_${b.text}_${b.fontSize}_${b.bold}_${b.italic}_${b.underline}';
+    final key =
+        '${b.id}_${b.text}_${b.fontSize}_${b.bold}_${b.italic}_${b.underline}_${b.borderStyle > 0}';
     if (key != _lastMaskKey) {
       _lastMaskKey = key;
       SimTextMask.generate(
@@ -118,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen>
         bold: b.bold,
         italic: b.italic,
         underline: b.underline,
+        hasBorder: b.borderStyle > 0,
       ).then((mask) {
         if (mounted) {
           setState(() {
@@ -1373,71 +1375,22 @@ class SimTextMask {
     required bool bold,
     required bool italic,
     required bool underline,
+    bool hasBorder = true,
   }) async {
-    final cleanText = text.trim();
-    if (cleanText.isEmpty) {
-      return SimTextMask(width: 1, height: 1, pixels: [false], litCount: 0);
-    }
-
-    // Tự động scale font để chiều cao chữ lấp đầy ~18-24 chấm LED trong khung 32 dòng
-    final double fs = (fontSize.clamp(10, 24) * 1.15);
-
-    final style = TextStyle(
-      color: Colors.white,
-      fontSize: fs,
-      fontWeight: bold ? FontWeight.w900 : FontWeight.bold,
-      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-      height: 1.0,
+    final tight = await HuiduProtocol.renderTightTextMask(
+      text: text,
+      fontSize: fontSize,
+      bold: bold,
+      italic: italic,
+      underline: underline,
+      hasBorder: hasBorder,
     );
-
-    final tp = TextPainter(
-      text: TextSpan(text: cleanText, style: style),
-      textAlign: TextAlign.left,
-      textDirection: TextDirection.ltr,
+    return SimTextMask(
+      width: tight.width,
+      height: tight.height,
+      pixels: tight.pixels,
+      litCount: tight.litCount,
     );
-    tp.layout();
-
-    final int tw = max(1, tp.width.ceil());
-    final int th = max(1, tp.height.ceil());
-
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()));
-    tp.paint(canvas, Offset.zero);
-
-    if (underline) {
-      canvas.drawLine(
-        Offset(0, th.toDouble() - 1),
-        Offset(tw.toDouble(), th.toDouble() - 1),
-        Paint()..color = Colors.white..strokeWidth = 2,
-      );
-    }
-
-    final pic = recorder.endRecording();
-    final img = await pic.toImage(tw, th);
-    final byteData = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
-    final bytes = byteData?.buffer.asUint8List() ?? Uint8List(0);
-
-    final pixels = List<bool>.filled(tw * th, false);
-    int lit = 0;
-    if (bytes.isNotEmpty) {
-      for (int y = 0; y < th; y++) {
-        for (int x = 0; x < tw; x++) {
-          final idx = (y * tw + x) * 4;
-          if (idx + 3 < bytes.length) {
-            final a = bytes[idx + 3];
-            final r = bytes[idx];
-            final g = bytes[idx + 1];
-            final b = bytes[idx + 2];
-            if (a > 30 || r > 50 || g > 50 || b > 50) {
-              pixels[y * tw + x] = true;
-              lit++;
-            }
-          }
-        }
-      }
-    }
-
-    return SimTextMask(width: tw, height: th, pixels: pixels, litCount: lit);
   }
 }
 
