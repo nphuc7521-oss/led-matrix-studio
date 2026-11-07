@@ -653,30 +653,30 @@ class HuiduProtocol {
     // GÓI 1: Cmd 0x13 (Screen setup)
     final p1 = buildPacket(cmd: 0x13, seq: 1, payload: screenHds);
 
-    // GÓI 2: Cmd 0x02 (Bắt đầu truyền tệp progam.hds)
+    // GÓI 2: Cmd 0x02 (Bắt đầu truyền tệp progam.hds - Bắt buộc Big-Endian cho transferId như HDSDK)
     final p2Payload = Uint8List(5);
     p2Payload[0] = 0x05;
-    p2Payload[1] = transferId & 0xFF;
-    p2Payload[2] = (transferId >> 8) & 0xFF;
+    p2Payload[1] = (transferId >> 8) & 0xFF; // High byte (BE)
+    p2Payload[2] = transferId & 0xFF;        // Low byte (BE)
     p2Payload[3] = 0x00;
-    p2Payload[4] = 0x01; // chunkCount = 1
+    p2Payload[4] = 0x01; // chunkCount = 1 (0x0001 BE)
     final p2 = buildPacket(cmd: 0x02, seq: 2, payload: p2Payload);
 
     // GÓI 3: Cmd 0x03 (Dữ liệu tệp progam.hds)
     final p3Payload = Uint8List(5 + progamHds.length);
     p3Payload[0] = 0x05;
-    p3Payload[1] = transferId & 0xFF;
-    p3Payload[2] = (transferId >> 8) & 0xFF;
-    p3Payload[3] = 0x00; // chunkIndex = 0
+    p3Payload[1] = (transferId >> 8) & 0xFF; // High byte (BE)
+    p3Payload[2] = transferId & 0xFF;        // Low byte (BE)
+    p3Payload[3] = 0x00; // chunkIndex = 0 (0x0000 BE)
     p3Payload[4] = 0x00;
     p3Payload.setRange(5, 5 + progamHds.length, progamHds);
     final p3 = buildPacket(cmd: 0x03, seq: 3, payload: p3Payload);
 
-    // GÓI 4: Cmd 0x04 (Hoàn tất truyền tệp)
+    // GÓI 4: Cmd 0x04 (Hoàn tất truyền tệp - Bắt buộc 0x05 = progam.hds và transferId Big-Endian!)
     final p4Payload = Uint8List(3);
-    p4Payload[0] = 0x03;
-    p4Payload[1] = transferId & 0xFF;
-    p4Payload[2] = (transferId >> 8) & 0xFF;
+    p4Payload[0] = 0x05;                     // FileType = 0x05 (progam.hds)
+    p4Payload[1] = (transferId >> 8) & 0xFF; // High byte (BE)
+    p4Payload[2] = transferId & 0xFF;        // Low byte (BE)
     final p4 = buildPacket(cmd: 0x04, seq: 4, payload: p4Payload);
 
     return [p1, p2, p3, p4];

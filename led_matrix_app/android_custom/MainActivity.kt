@@ -137,6 +137,9 @@ class MainActivity: FlutterActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
+                // Hủy đăng ký callback cũ trước khi yêu cầu mạng mới để tránh rò rỉ hoặc kẹt kết nối
+                disconnectWifi()
+
                 val specifier = WifiNetworkSpecifier.Builder()
                     .setSsid(ssid)
                     .setWpa2Passphrase(pass)
@@ -174,8 +177,8 @@ class MainActivity: FlutterActivity() {
                 }
 
                 currentCallback = callback
-                // Timeout 4 giây nhanh gọn để không làm đơ ứng dụng
-                connectivityManager?.requestNetwork(request, callback, 4000)
+                // Timeout 15 giây để người dùng đủ thời gian bấm "Kết nối" trên hộp thoại hệ thống Android/MIUI và nhận DHCP
+                connectivityManager?.requestNetwork(request, callback, 15000)
             } catch (e: Exception) {
                 bindCurrentWifi()
                 result.success(false)

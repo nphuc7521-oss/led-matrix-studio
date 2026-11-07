@@ -146,11 +146,15 @@ class SyncController extends ChangeNotifier {
         await WifiService.openWifiSettings();
       }
 
+      // Giải phóng kết nối Wi-Fi tạm thời của card để điện thoại tự động quay về mạng Wi-Fi tổng ban đầu
+      await WifiService.disconnectWifi(board.ssid);
+
       isSyncing = false;
       notifyListeners();
       return sent;
     } catch (e) {
       addLog('[LỖI NGOẠI LỆ] $e');
+      await WifiService.disconnectWifi('');
       isSyncing = false;
       notifyListeners();
       return false;
@@ -198,10 +202,17 @@ class SyncController extends ChangeNotifier {
         addLog('  [LỖI BẢNG ${i + 1}] $e');
       }
 
+      // Giải phóng kênh Wi-Fi của bảng vừa nạp xong trước khi chuyển sang bảng kế tiếp
+      await WifiService.disconnectWifi(board.ssid);
       progress = (i + 1) / total;
       notifyListeners();
-      await Future.delayed(const Duration(milliseconds: 150));
+      await Future.delayed(const Duration(milliseconds: 500));
     }
+
+    // Sau khi đồng bộ xong 3 bảng, ngắt toàn bộ liên kết tạm thời với card WF2 để điện thoại tự động quay về mạng Wi-Fi tổng (ví dụ: Van Phong)
+    addLog('>>> [MẠNG TỔNG] Đang trả kết nối điện thoại về mạng Wi-Fi chính...');
+    await WifiService.disconnectWifi('');
+    await Future.delayed(const Duration(milliseconds: 400));
 
     isSyncing = false;
     addLog('==============================================');
@@ -210,7 +221,7 @@ class SyncController extends ChangeNotifier {
     } else {
       addLog('=== [ĐỒNG BỘ XONG] Thành công $successCount/$total bảng. ===');
       if (successCount < total) {
-        addLog('💡 Mẹo: Trên Android, bạn có thể chọn từng Bảng (Bảng 1, 2, 3) -> Kết nối Wi-Fi card đó -> Bấm "NẠP RIÊNG BẢNG NÀY" (chỉ 1 giây/bảng)!');
+        addLog('💡 Mẹo: Khi hộp thoại kết nối Wi-Fi hiện lên, hãy bấm "Kết nối", hoặc chọn từng Bảng (1, 2, 3) -> Bấm "NẠP RIÊNG BẢNG NÀY"!');
       }
     }
     notifyListeners();

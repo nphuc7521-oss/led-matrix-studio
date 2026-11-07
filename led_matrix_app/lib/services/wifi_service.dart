@@ -74,20 +74,23 @@ class WifiService {
     Socket? socket;
     try {
       onLog?.call('  [TCP] Mở kết nối tới $ip:$port...');
-      try {
-        socket = await Socket.connect(
-          ip,
-          port,
-          timeout: const Duration(milliseconds: 2500),
-        );
-      } catch (_) {
-        await Future.delayed(const Duration(milliseconds: 200));
-        await bindCurrentWifi();
-        socket = await Socket.connect(
-          ip,
-          port,
-          timeout: const Duration(milliseconds: 2500),
-        );
+      for (int attempt = 1; attempt <= 5; attempt++) {
+        try {
+          await bindCurrentWifi();
+          socket = await Socket.connect(
+            ip,
+            port,
+            timeout: const Duration(milliseconds: 2200),
+          );
+          break;
+        } catch (e) {
+          if (attempt == 5) rethrow;
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+      if (socket == null) {
+        onLog?.call('  [LỖI SOCKET] Không thể mở cổng TCP $ip:$port.');
+        return false;
       }
       socket.setOption(SocketOption.tcpNoDelay, true);
 
@@ -99,6 +102,7 @@ class WifiService {
 
       int ackSuccessCount = 0;
       int sentPackets = 0;
+      bool cmd04AckOk = false;
 
       for (int i = 0; i < packets.length; i++) {
         final pkt = packets[i];
@@ -113,11 +117,12 @@ class WifiService {
         await socket.flush();
         sentPackets++;
 
-        // Chờ nhận phản hồi ACK chuẩn từ card HD-WF2 (Cmd 0x03 và 0x04 cần tối đa 2000ms để ghi bộ nhớ)
+        // Chờ nhận phản hồi ACK chuẩn từ card HD-WF2:
+        // Header 'HR' (28 bytes): byte 20 (0x14) = replyCmd, byte 21 (0x15) = signed status (0 = OK)
         bool ackOk = false;
         int errStatus = -1;
         final sw = Stopwatch()..start();
-        final maxWaitMs = (cmd == 0x03 || cmd == 0x04) ? 2000 : 1200;
+        final maxWaitMs = (cmd == 0x03 || cmd == 0x04) ? 2500 : 1500;
 
         while (sw.elapsedMilliseconds < maxWaitMs) {
           if (rxBuffer.length >= 22) {
@@ -131,8 +136,15 @@ class WifiService {
                   } else {
                     errStatus = status;
                   }
-                  // Tiêu thụ gói ACK khỏi buffer
-                  final endIdx = (idx + 28 <= rxBuffer.length) ? idx + 28 : rxBuffer.length;
+                  // Tiêu thụ gói ACK (chuẩn 31..35 bytes kết thúc bằng 0xAA) khỏi buffer
+                  int endIdx = idx + 28;
+                  while (endIdx < rxBuffer.length && rxBuffer[endIdx] != 0xAA) {
+                    endIdx++;
+                  }
+                  if (endIdx < rxBuffer.length && rxBuffer[endIdx] == 0xAA) {
+                    endIdx++;
+                  }
+                  if (endIdx > rxBuffer.length) endIdx = rxBuffer.length;
                   rxBuffer.removeRange(0, endIdx);
                   break;
                 }
@@ -145,6 +157,7 @@ class WifiService {
 
         if (ackOk) {
           ackSuccessCount++;
+          if (cmd == 0x04) cmd04AckOk = true;
           onLog?.call('  [ACK OK] Card nhận thành công gói $cmdHex.');
         } else if (errStatus >= 0) {
           onLog?.call(
@@ -154,19 +167,18 @@ class WifiService {
           onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã truyền đi.');
         }
 
-        await Future.delayed(const Duration(milliseconds: 25));
+        await Future.delayed(const Duration(milliseconds: 35));
       }
 
       // ĐẶC BIỆT QUAN TRỌNG: Sau gói Cmd 0x04 (Hoàn tất truyền file), 
       // card HD-WF2 cần thời gian lưu dữ liệu vào chip SPI flash và kích hoạt HUB75.
-      // Chờ 600ms trước khi đóng socket để card không bị ngắt quãng giữa chừng (nguyên nhân gây tắt ngúm bảng)!
       onLog?.call('  [LƯU FLASH] Đang hoàn tất lưu chương trình vào bộ nhớ card...');
-      await Future.delayed(const Duration(milliseconds: 600));
+      await Future.delayed(const Duration(milliseconds: 650));
 
       await sub.cancel();
 
-      // Chỉ trả về thành công khi có ít nhất 1 gói ACK phản hồi từ card hoặc toàn bộ gói đã phát
-      final bool isSuccess = (ackSuccessCount >= 1) || (sentPackets == packets.length && ackSuccessCount > 0);
+      // Bắt buộc gói chốt hạ 0x04 phải được card xác nhận ACK OK (hoặc tối thiểu >= 3 gói ACK OK)
+      final bool isSuccess = cmd04AckOk || (ackSuccessCount >= 3 && sentPackets == packets.length);
       return isSuccess;
     } catch (e) {
       onLog?.call('  [LỖI SOCKET] Không thể giao tiếp tới $ip:$port ($e)');
@@ -195,7 +207,9 @@ class WifiService {
     } else {
       onStatus('  [WIFI] Đang kết nối sang Wi-Fi: ${board.ssid}...');
       final connected = await connectToBoardWifi(board.ssid, board.password);
-      await Future.delayed(const Duration(milliseconds: 400));
+      // Chờ 900ms để Android/MIUI hoàn tất cấp phát IP DHCP 192.168.4.x
+      await Future.delayed(const Duration(milliseconds: 900));
+      await bindCurrentWifi();
 
       if (!connected) {
         final afterSsid = await getCurrentWifiSsid();
@@ -215,7 +229,7 @@ class WifiService {
 
           if (!allowFallbackToCurrentWifi) {
             onStatus(
-              '  [CẢNH BÁO] Chưa kết nối Wi-Fi ${board.ssid}. Hãy kết nối Wi-Fi card này trước!',
+              '  [CẢNH BÁO] Chưa kết nối Wi-Fi ${board.ssid}. Khi hộp thoại Android hiện lên, hãy bấm "Kết nối"!',
             );
             return false;
           }
@@ -224,12 +238,24 @@ class WifiService {
       }
     }
 
-    final sent = await sendPacketsToBoard(
+    var sent = await sendPacketsToBoard(
       ip: board.ip,
       port: board.port,
       packets: packets,
       onLog: onStatus,
     );
+
+    if (!sent) {
+      onStatus('  [THỬ LẠI] Đang thử truyền lại lần 2 cho ${board.name}...');
+      await Future.delayed(const Duration(milliseconds: 500));
+      await bindCurrentWifi();
+      sent = await sendPacketsToBoard(
+        ip: board.ip,
+        port: board.port,
+        packets: packets,
+        onLog: onStatus,
+      );
+    }
 
     if (sent) {
       onStatus('  ===> [THÀNH CÔNG] ${board.name} (${board.ssid}) đã sáng chữ mới!');
