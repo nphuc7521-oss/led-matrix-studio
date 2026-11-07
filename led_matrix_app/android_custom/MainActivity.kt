@@ -174,7 +174,8 @@ class MainActivity: FlutterActivity() {
                 }
 
                 currentCallback = callback
-                connectivityManager?.requestNetwork(request, callback, 25000)
+                // Timeout 4 giây nhanh gọn để không làm đơ ứng dụng
+                connectivityManager?.requestNetwork(request, callback, 4000)
             } catch (e: Exception) {
                 bindCurrentWifi()
                 result.success(false)

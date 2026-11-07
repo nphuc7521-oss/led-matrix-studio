@@ -477,7 +477,7 @@ class HuiduProtocol {
     if (clean.isEmpty) return;
 
     final chars = clean.split('').map(_normalizeVietnameseChar).toList();
-    final int scale = chars.length <= 4 ? 2 : (chars.length <= 6 ? 1 : 1);
+    final int scale = chars.length <= 5 ? 2 : 1;
     final int charW = 5 * scale;
     final int charH = 7 * scale;
     final int spacing = scale;
@@ -551,6 +551,7 @@ class HuiduProtocol {
     if (effCode == 36) effCode = 0x24;  // Pull Down = 36 (0x24)
     if (effCode == 38) effCode = 0x26;  // Stretch V
     if (effCode == 39) effCode = 0x27;  // Stretch H
+    if (effCode <= 0 || effCode > 45) effCode = 0x01; // Mặc định chạy chữ trái an toàn tuyệt đối
 
     final speed = board.speed.clamp(1, 20);
     final stay = board.stayTime.clamp(1, 10);

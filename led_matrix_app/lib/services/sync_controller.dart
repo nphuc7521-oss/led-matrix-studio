@@ -140,9 +140,9 @@ class SyncController extends ChangeNotifier {
       );
 
       if (sent) {
-        addLog('===> [THÀNH CÔNG] ${board.name} đã hiển thị chữ "${board.text}"!');
+        addLog('===> [THÀNH CÔNG] ${board.name} đã lưu và hiển thị chữ "${board.text}"!');
       } else {
-        addLog('[HƯỚNG DẪN] Đang mở danh sách Wi-Fi -> Chạm chọn Wi-Fi "${board.ssid}" (Mật khẩu: 88888888) rồi bấm Nạp lại!');
+        addLog('[HƯỚNG DẪN] Chưa nhận được phản hồi từ ${board.name}. Hãy vào Cài đặt Wi-Fi -> Kết nối vào "${board.ssid}" (MK: 88888888) rồi bấm Nạp lại!');
         await WifiService.openWifiSettings();
       }
 

@@ -62,7 +62,7 @@ class WifiService {
     } catch (_) {}
   }
 
-  /// Bắn chuỗi 4 gói tin Huidu chuẩn (Cmd 0x13, 0x02, 0x03, 0x04) qua TCP 6101 siêu tốc
+  /// Bắn chuỗi 4 gói tin Huidu chuẩn (Cmd 0x13, 0x02, 0x03, 0x04) qua TCP 6101
   static Future<bool> sendPacketsToBoard({
     required String ip,
     required int port,
@@ -91,10 +91,10 @@ class WifiService {
       }
       socket.setOption(SocketOption.tcpNoDelay, true);
 
-      final incoming = <int>[];
+      final rxBuffer = <int>[];
       final sub = socket.listen(
-        (data) => incoming.addAll(data),
-        onError: (e) => print('Socket listen error: $e'),
+        (data) => rxBuffer.addAll(data),
+        onError: (e) => onLog?.call('  [LỖI SOCKET] $e'),
       );
 
       int ackSuccessCount = 0;
@@ -106,7 +106,6 @@ class WifiService {
         final cmdHex =
             '0x${cmd.toRadixString(16).padLeft(2, '0').toUpperCase()}';
 
-        incoming.clear();
         onLog?.call(
           '  [GỬI] Gói $cmdHex (Seq ${i + 1}/${packets.length}, ${pkt.length}B)...',
         );
@@ -114,29 +113,34 @@ class WifiService {
         await socket.flush();
         sentPackets++;
 
-        // Chờ nhận phản hồi ACK siêu tốc (tối đa 120ms để nạp cực nhanh trong 1 giây)
+        // Chờ nhận phản hồi ACK chuẩn từ card HD-WF2 (Cmd 0x03 và 0x04 cần tối đa 2000ms để ghi bộ nhớ)
         bool ackOk = false;
         int errStatus = -1;
         final sw = Stopwatch()..start();
-        while (sw.elapsedMilliseconds < 120) {
-          if (incoming.length >= 22) {
-            for (int idx = 0; idx <= incoming.length - 22; idx++) {
-              if (incoming[idx] == 0x48 && incoming[idx + 1] == 0x52) {
-                final replyCmd = incoming[idx + 20];
-                final status = incoming[idx + 21];
+        final maxWaitMs = (cmd == 0x03 || cmd == 0x04) ? 2000 : 1200;
+
+        while (sw.elapsedMilliseconds < maxWaitMs) {
+          if (rxBuffer.length >= 22) {
+            for (int idx = 0; idx <= rxBuffer.length - 22; idx++) {
+              if (rxBuffer[idx] == 0x48 && rxBuffer[idx + 1] == 0x52) { // Header 'HR'
+                final replyCmd = rxBuffer[idx + 20];
+                final status = rxBuffer[idx + 21];
                 if (replyCmd == cmd) {
                   if (status == 0x00) {
                     ackOk = true;
                   } else {
                     errStatus = status;
                   }
+                  // Tiêu thụ gói ACK khỏi buffer
+                  final endIdx = (idx + 28 <= rxBuffer.length) ? idx + 28 : rxBuffer.length;
+                  rxBuffer.removeRange(0, endIdx);
                   break;
                 }
               }
             }
             if (ackOk || errStatus >= 0) break;
           }
-          await Future.delayed(const Duration(milliseconds: 10));
+          await Future.delayed(const Duration(milliseconds: 15));
         }
 
         if (ackOk) {
@@ -144,19 +148,26 @@ class WifiService {
           onLog?.call('  [ACK OK] Card nhận thành công gói $cmdHex.');
         } else if (errStatus >= 0) {
           onLog?.call(
-            '  [CẢNH BÁO] Card phản hồi mã 0x${errStatus.toRadixString(16).toUpperCase()} cho gói $cmdHex.',
+            '  [CẢNH BÁO] Card phản hồi mã lỗi 0x${errStatus.toRadixString(16).toUpperCase()} cho gói $cmdHex.',
           );
         } else {
-          onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã gửi.');
+          onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã truyền đi.');
         }
 
-        await Future.delayed(const Duration(milliseconds: 15));
+        await Future.delayed(const Duration(milliseconds: 25));
       }
 
-      await Future.delayed(const Duration(milliseconds: 30));
+      // ĐẶC BIỆT QUAN TRỌNG: Sau gói Cmd 0x04 (Hoàn tất truyền file), 
+      // card HD-WF2 cần thời gian lưu dữ liệu vào chip SPI flash và kích hoạt HUB75.
+      // Chờ 600ms trước khi đóng socket để card không bị ngắt quãng giữa chừng (nguyên nhân gây tắt ngúm bảng)!
+      onLog?.call('  [LƯU FLASH] Đang hoàn tất lưu chương trình vào bộ nhớ card...');
+      await Future.delayed(const Duration(milliseconds: 600));
+
       await sub.cancel();
-      // Nếu tất cả gói tin đã được gửi qua socket TCP mà không bị ngắt kết nối thì truyền thành công!
-      return (sentPackets == packets.length) || (ackSuccessCount > 0);
+
+      // Chỉ trả về thành công khi có ít nhất 1 gói ACK phản hồi từ card hoặc toàn bộ gói đã phát
+      final bool isSuccess = (ackSuccessCount >= 1) || (sentPackets == packets.length && ackSuccessCount > 0);
+      return isSuccess;
     } catch (e) {
       onLog?.call('  [LỖI SOCKET] Không thể giao tiếp tới $ip:$port ($e)');
       return false;
@@ -192,7 +203,7 @@ class WifiService {
             afterSsid.toLowerCase() == board.ssid.toLowerCase();
 
         if (!isMatchedNow) {
-          // Nếu nhận diện rõ ràng đang bắt một card WF2 KHÁC (ví dụ card 1 đang bật mà gửi cho card 2), mới chặn để tránh ghi đè
+          // Nếu nhận diện rõ ràng đang bắt một card WF2 KHÁC (ví dụ card 1 đang bật mà gửi cho card 2), chặn ngay để tránh tắt bảng
           if (afterSsid.isNotEmpty &&
               afterSsid.toLowerCase().startsWith('wf2_') &&
               afterSsid.toLowerCase() != board.ssid.toLowerCase()) {
@@ -204,11 +215,11 @@ class WifiService {
 
           if (!allowFallbackToCurrentWifi) {
             onStatus(
-              '  [CẢNH BÁO] Chưa kết nối Wi-Fi ${board.ssid}.',
+              '  [CẢNH BÁO] Chưa kết nối Wi-Fi ${board.ssid}. Hãy kết nối Wi-Fi card này trước!',
             );
             return false;
           }
-          onStatus('  [WIFI] Đang thử gửi lệnh tới card...');
+          onStatus('  [WIFI] Thử phát lệnh tới card tại 192.168.4.1...');
         }
       }
     }

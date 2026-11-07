@@ -57,10 +57,12 @@ class LedBoard {
           name: 'BẢNG 1',
           ssid: 'WF2_f412fab2b75c',
           guid: '7100ff00-b2fa-0d00-2000-014e4300001a',
-          text: 'PHÚC',
-          color: 'green',
+          text: 'HOÀNG',
+          color: 'cyan',
           colorfulWords: 1,
-          effect: 1, // Chạy trái
+          effect: 1, // Chạy chữ sang trái (Move Left)
+          speed: 10,
+          stayTime: 1,
           borderStyle: 1,
           bold: true,
         ),
@@ -72,7 +74,9 @@ class LedBoard {
           text: 'NGUYỄN',
           color: 'yellow',
           colorfulWords: 1,
-          effect: 2, // Chạy phải
+          effect: 1, // Chạy chữ sang trái (Move Left)
+          speed: 10,
+          stayTime: 1,
           borderStyle: 1,
           bold: true,
         ),
@@ -81,10 +85,12 @@ class LedBoard {
           name: 'BẢNG 3',
           ssid: 'WF2_f412fab177c8',
           guid: '7100ff00-77c8-0d00-2000-014e4300001c',
-          text: 'HOÀNG',
-          color: 'red',
+          text: 'PHÚC',
+          color: 'green',
           colorfulWords: 1,
-          effect: 37, // Cuộn lên
+          effect: 1, // Chạy chữ sang trái (Move Left)
+          speed: 10,
+          stayTime: 1,
           borderStyle: 1,
           bold: true,
         ),
