@@ -80,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   SimTextMask? _currentMask;
   String _lastMaskKey = '';
+  final Map<String, SimTextMask> _maskCache = {};
 
   @override
   void initState() {
@@ -113,6 +114,10 @@ class _HomeScreenState extends State<HomeScreen>
         '${b.id}_${b.text}_${b.fontSize}_${b.bold}_${b.italic}_${b.underline}_${b.borderStyle > 0}';
     if (key != _lastMaskKey) {
       _lastMaskKey = key;
+      if (_maskCache.containsKey(key)) {
+        _currentMask = _maskCache[key];
+        return;
+      }
       SimTextMask.generate(
         text: b.text,
         fontSize: b.fontSize,
@@ -121,7 +126,11 @@ class _HomeScreenState extends State<HomeScreen>
         underline: b.underline,
         hasBorder: b.borderStyle > 0,
       ).then((mask) {
-        if (mounted) {
+        if (_maskCache.length > 30) {
+          _maskCache.clear();
+        }
+        _maskCache[key] = mask;
+        if (mounted && _lastMaskKey == key) {
           setState(() {
             _currentMask = mask;
           });

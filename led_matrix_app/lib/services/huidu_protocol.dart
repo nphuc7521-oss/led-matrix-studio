@@ -230,20 +230,17 @@ class HuiduProtocol {
     return [...stripR, ...stripG, ...stripB];
   }
 
-  /// Kết xuất từng ký tự tiếng Việt độc lập với khoảng cách tách chữ rõ nét (tuyệt đối không dính chữ),
-  /// dùng chung 100% giữa màn hình mô phỏng trên App và dữ liệu nạp xuống bảng LED thực tế.
-  static Future<TightTextMask> renderTightTextMask({
-    required String text,
-    required int fontSize,
+  /// Kết xuất 1 dòng văn bản tiếng Việt với từng ký tự nằm trong ô cô lập (không bao giờ dính chữ),
+  /// dùng thuật toán phát hiện đỉnh nét (Ridge-Aware Thresholding) giúp nét chữ đậm rõ, không bao giờ đứt nét hay mất dấu.
+  static Future<TightTextMask> _renderSingleLineTight({
+    required String lineText,
+    required int curFontSize,
     required bool bold,
-    required bool italic,
     required bool underline,
-    required bool hasBorder,
+    required int safeW,
   }) async {
-    final int safeW = hasBorder ? 60 : 62;
-    final int safeH = hasBorder ? 28 : 30;
-    final String cleanText = text.trim();
-    if (cleanText.isEmpty) {
+    final String clean = lineText.trim();
+    if (clean.isEmpty) {
       return const TightTextMask(
         width: 1,
         height: 1,
@@ -252,173 +249,176 @@ class HuiduProtocol {
       );
     }
 
-    final List<String> graphemes =
-        cleanText.replaceAll('\r\n', ' ').replaceAll('\n', ' ').characters.toList();
-    int curFontSize = fontSize.clamp(10, 24);
-    const int cellW = 64;
-    const int cellH = 64;
+    final List<String> graphemes = clean.characters.toList();
+    const int slotW = 36;
+    const int cellH = 48;
+    final int canvasW = max(1, graphemes.length) * slotW;
 
-    List<List<bool>> finalCols = [];
-    int minY = 9999;
-    int maxY = -1;
+    final FontWeight weight = bold ? FontWeight.w700 : FontWeight.w500;
+    final textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: curFontSize.toDouble(),
+      fontWeight: weight,
+      fontStyle: FontStyle.normal,
+      height: 1.0,
+    );
 
-    while (curFontSize >= 8) {
-      final int alphaThreshold = curFontSize >= 14 ? 155 : 140;
-      final FontWeight weight = bold
-          ? (curFontSize >= 16 ? FontWeight.w600 : FontWeight.w500)
-          : FontWeight.w400;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      Rect.fromLTWH(0, 0, canvasW.toDouble(), cellH.toDouble()),
+    );
 
-      final List<List<List<bool>>?> glyphColsList = [];
+    for (int i = 0; i < graphemes.length; i++) {
+      final String ch = graphemes[i];
+      if (ch.trim().isEmpty) continue;
 
-      for (final String ch in graphemes) {
-        if (ch.trim().isEmpty) {
-          glyphColsList.add(null); // Khoảng trắng giữa các từ
-          continue;
-        }
+      final tp = TextPainter(
+        text: TextSpan(text: ch, style: textStyle),
+        textAlign: TextAlign.left,
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      );
+      tp.layout();
+      tp.paint(canvas, Offset(i * slotW + 4.0, 8.0));
+    }
 
-        final recorder = ui.PictureRecorder();
-        final canvas = Canvas(
-          recorder,
-          const Rect.fromLTWH(0, 0, 64.0, 64.0),
-        );
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(canvasW, cellH);
+    Uint8List rgba;
+    try {
+      final byteData =
+          await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      rgba = byteData!.buffer.asUint8List();
+    } finally {
+      image.dispose();
+      picture.dispose();
+    }
 
-        final textStyle = TextStyle(
-          color: Colors.white,
-          fontSize: curFontSize.toDouble(),
-          fontWeight: weight,
-          fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-          height: 1.0,
-        );
+    int alphaAt(int px, int py) {
+      if (px < 0 || px >= canvasW || py < 0 || py >= cellH) return 0;
+      return rgba[(py * canvasW + px) * 4 + 3];
+    }
 
-        final tp = TextPainter(
-          text: TextSpan(text: ch, style: textStyle),
-          textAlign: TextAlign.left,
-          textDirection: TextDirection.ltr,
-          maxLines: 1,
-        );
-        tp.layout();
-        tp.paint(canvas, const Offset(8, 8));
+    bool isPixelLit(int px, int py) {
+      final int a = alphaAt(px, py);
+      if (a >= 115) return true;
+      if (a < 72) return false;
+      final int leftA = alphaAt(px - 1, py);
+      final int rightA = alphaAt(px + 1, py);
+      final int topA = alphaAt(px, py - 1);
+      final int botA = alphaAt(px, py + 1);
+      final bool isHorizPeak = a > leftA + 10 &&
+          a >= rightA &&
+          rightA < a + 10 &&
+          topA < 165 &&
+          botA < 165;
+      final bool isVertPeak = a > topA + 10 &&
+          a >= botA &&
+          botA < a + 10 &&
+          leftA < 165 &&
+          rightA < 165;
+      return isHorizPeak || isVertPeak;
+    }
 
-        final picture = recorder.endRecording();
-        final image = await picture.toImage(cellW, cellH);
-        final byteData =
-            await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-        final rgba = byteData!.buffer.asUint8List();
+    final List<List<List<bool>>?> glyphColsList = [];
 
-        int cMinX = 9999;
-        int cMaxX = -1;
-        for (int x = 0; x < cellW; x++) {
-          for (int y = 0; y < cellH; y++) {
-            final idx = (y * cellW + x) * 4;
-            if (rgba[idx + 3] >= alphaThreshold) {
-              if (x < cMinX) cMinX = x;
-              if (x > cMaxX) cMaxX = x;
-            }
+    for (int i = 0; i < graphemes.length; i++) {
+      final String ch = graphemes[i];
+      if (ch.trim().isEmpty) {
+        glyphColsList.add(null);
+        continue;
+      }
+
+      final int slotStartX = i * slotW + 1;
+      final int slotEndX = (i + 1) * slotW - 2;
+
+      int cMinX = 9999;
+      int cMaxX = -1;
+      for (int x = slotStartX; x <= slotEndX; x++) {
+        for (int y = 1; y < cellH - 1; y++) {
+          if (isPixelLit(x, y)) {
+            if (x < cMinX) cMinX = x;
+            if (x > cMaxX) cMaxX = x;
           }
-        }
-
-        // Nếu nét quá mảnh ở cỡ chữ nhỏ, hạ nhẹ ngưỡng cho riêng ký tự đó để không mất dấu
-        int usedThreshold = alphaThreshold;
-        if (cMaxX < cMinX) {
-          usedThreshold = 95;
-          for (int x = 0; x < cellW; x++) {
-            for (int y = 0; y < cellH; y++) {
-              final idx = (y * cellW + x) * 4;
-              if (rgba[idx + 3] >= usedThreshold) {
-                if (x < cMinX) cMinX = x;
-                if (x > cMaxX) cMaxX = x;
-              }
-            }
-          }
-        }
-
-        if (cMaxX >= cMinX) {
-          final List<List<bool>> charCols = [];
-          for (int x = cMinX; x <= cMaxX; x++) {
-            final col = List<bool>.filled(cellH, false);
-            for (int y = 0; y < cellH; y++) {
-              final idx = (y * cellW + x) * 4;
-              if (rgba[idx + 3] >= usedThreshold) {
-                col[y] = true;
-              }
-            }
-            charCols.add(col);
-          }
-          glyphColsList.add(charCols);
         }
       }
 
-      // Tính chiều rộng khi ghép các ký tự với khoảng cách tách chữ rõ ràng (ưu tiên 2 cột tối nếu vừa khung, tối thiểu 1 cột tối)
-      int calcWidth(int letterGap, int spaceWidth) {
-        int w = 0;
-        bool prevWasChar = false;
-        for (final g in glyphColsList) {
-          if (g == null) {
-            w += spaceWidth;
-            prevWasChar = false;
-          } else {
-            if (prevWasChar) w += letterGap;
-            w += g.length;
-            prevWasChar = true;
+      if (cMaxX >= cMinX) {
+        final List<List<bool>> charCols = [];
+        for (int x = cMinX; x <= cMaxX; x++) {
+          final col = List<bool>.filled(cellH, false);
+          for (int y = 1; y < cellH - 1; y++) {
+            if (isPixelLit(x, y)) {
+              col[y] = true;
+            }
           }
+          charCols.add(col);
         }
-        return w;
+        glyphColsList.add(charCols);
       }
+    }
 
-      int letterGap = 2;
-      int spaceWidth = 4;
-      if (calcWidth(letterGap, spaceWidth) > safeW) {
-        letterGap = 1;
-        spaceWidth = 3;
-      }
-
-      finalCols = [];
+    int calcWidth(int letterGap, int spaceWidth) {
+      int w = 0;
       bool prevWasChar = false;
       for (final g in glyphColsList) {
         if (g == null) {
-          for (int s = 0; s < spaceWidth; s++) {
-            finalCols.add(List<bool>.filled(cellH, false));
-          }
+          w += spaceWidth;
           prevWasChar = false;
         } else {
-          if (prevWasChar) {
-            for (int s = 0; s < letterGap; s++) {
-              finalCols.add(List<bool>.filled(cellH, false));
-            }
-          }
-          finalCols.addAll(g);
+          if (prevWasChar) w += letterGap;
+          w += g.length;
           prevWasChar = true;
         }
       }
+      return w;
+    }
 
-      minY = 9999;
-      maxY = -1;
-      for (int x = 0; x < finalCols.length; x++) {
-        final col = finalCols[x];
-        for (int y = 0; y < cellH; y++) {
-          if (col[y]) {
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
+    int letterGap = 2;
+    int spaceWidth = 4;
+    if (calcWidth(letterGap, spaceWidth) > safeW) {
+      letterGap = 1;
+      spaceWidth = 3;
+    }
+
+    final List<List<bool>> finalCols = [];
+    bool prevWasChar = false;
+    for (final g in glyphColsList) {
+      if (g == null) {
+        for (int s = 0; s < spaceWidth; s++) {
+          finalCols.add(List<bool>.filled(cellH, false));
+        }
+        prevWasChar = false;
+      } else {
+        if (prevWasChar) {
+          for (int s = 0; s < letterGap; s++) {
+            finalCols.add(List<bool>.filled(cellH, false));
           }
         }
+        finalCols.addAll(g);
+        prevWasChar = true;
       }
+    }
 
-      if (underline && maxY >= minY) {
-        final int ulY = min(cellH - 1, maxY + 2);
-        for (int x = 0; x < finalCols.length; x++) {
-          finalCols[x][ulY] = true;
+    int minY = 9999;
+    int maxY = -1;
+    for (int x = 0; x < finalCols.length; x++) {
+      final col = finalCols[x];
+      for (int y = 0; y < cellH; y++) {
+        if (col[y]) {
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
         }
-        maxY = ulY;
       }
+    }
 
-      final int tw = finalCols.length;
-      final int th = (maxY >= minY) ? (maxY - minY + 1) : 0;
-
-      if ((th > safeH || tw > safeW) && curFontSize > 8) {
-        curFontSize--;
-        continue;
+    if (underline && maxY >= minY) {
+      final int ulY = min(cellH - 1, maxY + 2);
+      for (int x = 0; x < finalCols.length; x++) {
+        finalCols[x][ulY] = true;
       }
-      break;
+      maxY = ulY;
     }
 
     if (finalCols.isEmpty || maxY < minY) {
@@ -450,6 +450,203 @@ class HuiduProtocol {
       height: tightH,
       pixels: pixels,
       litCount: litCount,
+    );
+  }
+
+  /// Chia cụm từ dài nhiều chữ (ví dụ: "Siêu Nhân Vàng", "Siêu Nhân Trắng") thành 2 dòng cân đối
+  static List<String> _splitIntoTwoBalancedLines(String cleanText) {
+    final words =
+        cleanText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.length < 2) return [cleanText];
+
+    if (words.length == 3) {
+      final firstTwo = '${words[0]} ${words[1]}';
+      if (firstTwo.characters.length <= 10) {
+        return [firstTwo, words[2]];
+      }
+    }
+
+    int bestK = 1;
+    int bestScore = 999999;
+    for (int k = 1; k < words.length; k++) {
+      final l1 = words.sublist(0, k).join(' ');
+      final l2 = words.sublist(k).join(' ');
+      final len1 = l1.characters.length;
+      final len2 = l2.characters.length;
+      final score = max(len1, len2) * 10 + (len1 - len2).abs();
+      if (score <= bestScore) {
+        bestScore = score;
+        bestK = k;
+      }
+    }
+
+    return [
+      words.sublist(0, bestK).join(' '),
+      words.sublist(bestK).join(' '),
+    ];
+  }
+
+  /// Ghép 2 dòng TightTextMask thành 1 mặt nạ 2 dòng căn giữa hoàn chỉnh
+  static TightTextMask _combineTwoLines(
+    TightTextMask m1,
+    TightTextMask m2,
+    int lineGap,
+  ) {
+    final int totalW = max(m1.width, m2.width);
+    final int totalH = m1.height + lineGap + m2.height;
+    final List<bool> pixels = List<bool>.filled(totalW * totalH, false);
+    int litCount = 0;
+
+    final int offX1 = (totalW - m1.width) ~/ 2;
+    for (int y = 0; y < m1.height; y++) {
+      for (int x = 0; x < m1.width; x++) {
+        if (m1.pixels[y * m1.width + x]) {
+          pixels[y * totalW + (offX1 + x)] = true;
+          litCount++;
+        }
+      }
+    }
+
+    final int offX2 = (totalW - m2.width) ~/ 2;
+    final int offY2 = m1.height + lineGap;
+    for (int y = 0; y < m2.height; y++) {
+      for (int x = 0; x < m2.width; x++) {
+        if (m2.pixels[y * m2.width + x]) {
+          pixels[(offY2 + y) * totalW + (offX2 + x)] = true;
+          litCount++;
+        }
+      }
+    }
+
+    return TightTextMask(
+      width: totalW,
+      height: totalH,
+      pixels: pixels,
+      litCount: litCount,
+    );
+  }
+
+  /// Kết xuất từng ký tự tiếng Việt độc lập với khoảng cách tách chữ rõ nét (tuyệt đối không dính chữ, không đứt nét),
+  /// tự động xuống 2 dòng cân đối khi câu dài (như "Siêu Nhân Vàng", "Siêu Nhân Đen", "Siêu Nhân Trắng")
+  /// để chữ luôn to, rõ ràng và không bao giờ bị cắt mất chữ cuối.
+  static Future<TightTextMask> renderTightTextMask({
+    required String text,
+    required int fontSize,
+    required bool bold,
+    required bool italic,
+    required bool underline,
+    required bool hasBorder,
+  }) async {
+    final int safeW = hasBorder ? 60 : 62;
+    final int safeH = hasBorder ? 28 : 30;
+    final String cleanText =
+        text.replaceAll('\r\n', '\n').trim();
+    if (cleanText.isEmpty) {
+      return const TightTextMask(
+        width: 1,
+        height: 1,
+        pixels: [false],
+        litCount: 0,
+      );
+    }
+
+    final List<String> explicitLines = cleanText
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    final String singleLineText = explicitLines.join(' ');
+    final words = singleLineText
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+
+    // 1. Thử kết xuất trên 1 dòng nếu không có xuống dòng thủ công và độ dài vừa phải (<= 9 ký tự hoặc 1 từ)
+    if (explicitLines.length == 1 &&
+        (words.length == 1 || singleLineText.characters.length <= 9)) {
+      int curFontSize = fontSize.clamp(10, 24);
+      TightTextMask bestSingle = const TightTextMask(
+        width: 1,
+        height: 1,
+        pixels: [false],
+        litCount: 0,
+      );
+      while (curFontSize >= 9) {
+        bestSingle = await _renderSingleLineTight(
+          lineText: singleLineText,
+          curFontSize: curFontSize,
+          bold: bold,
+          underline: underline,
+          safeW: safeW,
+        );
+        if ((bestSingle.width > safeW || bestSingle.height > safeH) &&
+            curFontSize > 9) {
+          curFontSize--;
+          continue;
+        }
+        break;
+      }
+      // Nếu vừa khít 1 dòng ở cỡ chữ >= 12 (hoặc chỉ có 1 từ duy nhất), dùng luôn 1 dòng
+      if (words.length == 1 ||
+          (bestSingle.width <= safeW &&
+              bestSingle.height <= safeH &&
+              curFontSize >= 12)) {
+        return bestSingle;
+      }
+    }
+
+    // 2. Với cụm từ nhiều chữ dài (như "Siêu Nhân Vàng", "Siêu Nhân Đen", "Siêu Nhân Trắng"),
+    // tự động bố cục 2 dòng cân đối để chữ to gấp đôi, rõ nét 100% và không bao giờ mất chữ cuối!
+    final List<String> twoLines = explicitLines.length >= 2
+        ? [explicitLines[0], explicitLines.sublist(1).join(' ')]
+        : _splitIntoTwoBalancedLines(singleLineText);
+
+    if (twoLines.length == 2) {
+      int curFontSize = min(fontSize.clamp(10, 24), 15);
+      TightTextMask bestTwoLine = const TightTextMask(
+        width: 1,
+        height: 1,
+        pixels: [false],
+        litCount: 0,
+      );
+
+      while (curFontSize >= 9) {
+        final m1 = await _renderSingleLineTight(
+          lineText: twoLines[0],
+          curFontSize: curFontSize,
+          bold: bold,
+          underline: underline,
+          safeW: safeW,
+        );
+        final m2 = await _renderSingleLineTight(
+          lineText: twoLines[1],
+          curFontSize: curFontSize,
+          bold: bold,
+          underline: underline,
+          safeW: safeW,
+        );
+
+        final int lineGap = (m1.height + 2 + m2.height <= safeH) ? 2 : 1;
+        bestTwoLine = _combineTwoLines(m1, m2, lineGap);
+
+        if ((bestTwoLine.width > safeW || bestTwoLine.height > safeH) &&
+            curFontSize > 9) {
+          curFontSize--;
+          continue;
+        }
+        break;
+      }
+      return bestTwoLine;
+    }
+
+    // Dự phòng 1 dòng
+    return _renderSingleLineTight(
+      lineText: singleLineText,
+      curFontSize: 10,
+      bold: bold,
+      underline: underline,
+      safeW: safeW,
     );
   }
 
