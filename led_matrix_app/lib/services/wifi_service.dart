@@ -134,95 +134,63 @@ class WifiService {
         bool ackOk = false;
         int errStatus = -1;
 
-        // Chỉ riêng gói 0x13 (screen.hds - 96B khởi tạo phiên) được phép gửi tối đa 2 lần trên cùng socket
-        // giống hệt HDSDK.dll để đánh thức cầu UART của card.
-        // Tuyệt đối chỉ gửi 1 lần cho 0x02, 0x03, 0x04 để không bao giờ làm lệch/hỏng bộ đệm file progam.hds!
-        final int maxSendTries = (cmd == 0x13) ? 2 : 1;
-        final int maxWaitMs = (cmd == 0x03)
-            ? 2600
-            : (cmd == 0x04)
-                ? 2200
-                : (cmd == 0x02)
-                    ? 2000
-                    : 1500;
+        // Tuyệt đối chỉ gửi mỗi gói đúng 1 lần trên 1 kết nối TCP (không gửi lặp trên cùng socket tránh đụng độ ACK)
+        // và truyền nguyên khối (single contiguous write) để lwIP trên card HD-WF2 khớp đúng TotalLen!
+        const int maxWaitMs = 2500;
 
-        for (int sendTry = 1; sendTry <= maxSendTries; sendTry++) {
-          if (sendTry == 1) {
-            onLog?.call(
-              '  [GỬI] Gói $cmdHex (Seq ${i + 1}/${packets.length}, ${pkt.length}B)...',
-            );
+        onLog?.call(
+          '  [GỬI] Gói $cmdHex (Seq ${i + 1}/${packets.length}, ${pkt.length}B)...',
+        );
+
+        if (cmd == 0x04) {
+          // Card có thể tự khởi động lại bộ hiển thị ngay khi nhận 0x04 gây đóng socket sớm (errno 103)
+          isClosing = true;
+        }
+
+        try {
+          socket.add(pkt);
+          await socket.flush();
+          if (cmd == 0x04) sent04 = true;
+        } catch (e) {
+          if (cmd == 0x04 && cmd03AckOk) {
+            sent04 = true;
           } else {
-            onLog?.call(
-              '  [ĐÁNH THỨC CARD] Phát lại gói khởi tạo $cmdHex (lần 2)...',
-            );
-          }
-
-          if (cmd == 0x04) {
-            // Card có thể tự khởi động lại bộ hiển thị ngay khi nhận 0x04 gây đóng socket sớm (errno 103)
-            isClosing = true;
-          }
-
-          try {
-            // Với gói dữ liệu lớn (0x03 = 920..935 bytes), chia thành từng khung 256 bytes cách nhau 15ms
-            // để bộ đệm FIFO UART nội bộ của chip Wi-Fi trên card HD-WF2 không bao giờ bị tràn (tránh lỗi 0x5 hoặc mất ACK)
-            if (pkt.length > 256) {
-              for (int offset = 0; offset < pkt.length; offset += 256) {
-                final int end =
-                    (offset + 256 < pkt.length) ? offset + 256 : pkt.length;
-                socket.add(pkt.sublist(offset, end));
-                await socket.flush();
-                if (end < pkt.length) {
-                  await Future.delayed(const Duration(milliseconds: 15));
-                }
-              }
-            } else {
-              socket.add(pkt);
-              await socket.flush();
-            }
-            if (cmd == 0x04) sent04 = true;
-          } catch (e) {
-            if (cmd == 0x04 && cmd03AckOk) {
-              sent04 = true;
-              break;
-            }
             rethrow;
           }
+        }
 
-          final sw = Stopwatch()..start();
-          while (sw.elapsedMilliseconds < maxWaitMs) {
-            if (rxBuffer.length >= 22) {
-              for (int idx = 0; idx <= rxBuffer.length - 22; idx++) {
-                if (rxBuffer[idx] == 0x48 && rxBuffer[idx + 1] == 0x52) {
-                  // Header 'HR'
-                  final replyCmd = rxBuffer[idx + 20];
-                  final status = rxBuffer[idx + 21];
-                  if (replyCmd == cmd) {
-                    if (status == 0x00) {
-                      ackOk = true;
-                    } else {
-                      errStatus = status;
-                    }
-                    // Tiêu thụ gói ACK (chuẩn 31..35 bytes kết thúc bằng 0xAA) khỏi buffer
-                    int endIdx = idx + 28;
-                    while (
-                        endIdx < rxBuffer.length && rxBuffer[endIdx] != 0xAA) {
-                      endIdx++;
-                    }
-                    if (endIdx < rxBuffer.length && rxBuffer[endIdx] == 0xAA) {
-                      endIdx++;
-                    }
-                    if (endIdx > rxBuffer.length) endIdx = rxBuffer.length;
-                    rxBuffer.removeRange(0, endIdx);
-                    break;
+        final sw = Stopwatch()..start();
+        while (sw.elapsedMilliseconds < maxWaitMs) {
+          if (rxBuffer.length >= 22) {
+            for (int idx = 0; idx <= rxBuffer.length - 22; idx++) {
+              if (rxBuffer[idx] == 0x48 && rxBuffer[idx + 1] == 0x52) {
+                // Header 'HR'
+                final replyCmd = rxBuffer[idx + 20];
+                final status = rxBuffer[idx + 21];
+                if (replyCmd == cmd) {
+                  if (status == 0x00) {
+                    ackOk = true;
+                  } else {
+                    errStatus = status;
                   }
+                  // Tiêu thụ gói ACK (chuẩn 31..35 bytes kết thúc bằng 0xAA) khỏi buffer
+                  int endIdx = idx + 28;
+                  while (
+                      endIdx < rxBuffer.length && rxBuffer[endIdx] != 0xAA) {
+                    endIdx++;
+                  }
+                  if (endIdx < rxBuffer.length && rxBuffer[endIdx] == 0xAA) {
+                    endIdx++;
+                  }
+                  if (endIdx > rxBuffer.length) endIdx = rxBuffer.length;
+                  rxBuffer.removeRange(0, endIdx);
+                  break;
                 }
               }
-              if (ackOk || errStatus >= 0) break;
             }
-            await Future.delayed(const Duration(milliseconds: 15));
+            if (ackOk || errStatus >= 0) break;
           }
-
-          if (ackOk || errStatus >= 0) break;
+          await Future.delayed(const Duration(milliseconds: 15));
         }
 
         if (ackOk) {
@@ -245,10 +213,7 @@ class WifiService {
           if (cmd == 0x13 || cmd == 0x02 || cmd == 0x03) break;
         }
 
-        // Nghỉ 90ms sau 0x13 và 0x02 để MCU của card chuẩn bị xong bộ đệm Flash trước khi nhận 935B của 0x03
-        await Future.delayed(
-          Duration(milliseconds: (cmd == 0x13 || cmd == 0x02) ? 90 : 60),
-        );
+        await Future.delayed(const Duration(milliseconds: 60));
       }
 
       // Chỉ thành công khi CẢ 3 gói 0x13, 0x02, 0x03 đều đã nhận ACK OK (status=0x00) và gói 0x04 đã được phát
@@ -302,8 +267,8 @@ class WifiService {
     } else {
       onStatus('  [WIFI] Đang kết nối sang Wi-Fi: ${board.ssid}...');
       final connected = await connectToBoardWifi(board.ssid, board.password);
-      // Chờ 1200ms để Android/MIUI hoàn tất cấp phát IP DHCP 192.168.4.x và ổn định bảng định tuyến ARP của card
-      await Future.delayed(const Duration(milliseconds: 1200));
+      // Chờ 1400ms để Android/MIUI hoàn tất cấp phát IP DHCP 192.168.4.x và ổn định bảng định tuyến ARP của card
+      await Future.delayed(const Duration(milliseconds: 1400));
       await bindCurrentWifi();
 
       if (!connected) {
@@ -339,13 +304,19 @@ class WifiService {
         onStatus(
           '  [THỬ LẠI LẦN $tryIdx/3] Đang ổn định kênh truyền cho ${board.name}...',
         );
-        // Kiểm tra nếu Wi-Fi bị tuột khỏi card thì mới kết nối lại, còn nếu vẫn đang giữ đúng sóng card thì chỉ mở lại TCP nhanh!
         final nowSsid = await getCurrentWifiSsid();
-        if (nowSsid.isEmpty ||
+        if (tryIdx == 3 ||
+            nowSsid.isEmpty ||
             nowSsid.toLowerCase() != board.ssid.toLowerCase()) {
+          // Ở lần thử thứ 3 (hoặc khi tuột sóng), làm mới lại phiên kết nối Wi-Fi/ARP tới card
+          if (tryIdx == 3) {
+            await disconnectWifi(board.ssid);
+            await Future.delayed(const Duration(milliseconds: 400));
+          }
           await connectToBoardWifi(board.ssid, board.password);
-          await Future.delayed(const Duration(milliseconds: 1000));
+          await Future.delayed(const Duration(milliseconds: 1400));
         } else {
+          // Ở lần thử thứ 2, giữ nguyên sóng Wi-Fi đang kết nối và mở lại socket TCP nhanh
           await Future.delayed(const Duration(milliseconds: 800));
         }
         await bindCurrentWifi();
