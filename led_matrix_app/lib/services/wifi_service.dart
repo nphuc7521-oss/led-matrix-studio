@@ -163,17 +163,25 @@ class WifiService {
           onLog?.call(
             '  [CẢNH BÁO] Card phản hồi mã lỗi 0x${errStatus.toRadixString(16).toUpperCase()} cho gói $cmdHex.',
           );
+          // Nếu gói khởi tạo (0x13 / 0x02) hoặc gói dữ liệu (0x03) bị lỗi, dừng phiên TCP này ngay để thử lại từ đầu
+          if (cmd == 0x02 || cmd == 0x03) break;
         } else {
           onLog?.call('  [ĐÃ PHÁT] Gói $cmdHex đã truyền đi.');
+          // Nếu gói 0x13 hoặc 0x02 không có phản hồi ACK (ví dụ card vừa mới lên sóng Wi-Fi chưa kịp mở stack TCP),
+          // dừng ngay để kết nối lại TCP mới thay vì gửi tiếp 0x03/0x04 vô ích!
+          if (cmd == 0x13 || cmd == 0x02) break;
         }
 
-        await Future.delayed(const Duration(milliseconds: 35));
+        await Future.delayed(const Duration(milliseconds: 50));
       }
 
       // ĐẶC BIỆT QUAN TRỌNG: Sau gói Cmd 0x04 (Hoàn tất truyền file), 
-      // card HD-WF2 cần thời gian lưu dữ liệu vào chip SPI flash và kích hoạt HUB75.
-      onLog?.call('  [LƯU FLASH] Đang hoàn tất lưu chương trình vào bộ nhớ card...');
-      await Future.delayed(const Duration(milliseconds: 650));
+      // card HD-WF2 cần khoảng 1200ms để ghi xong SPI flash và khởi động lại bộ quét HUB75 mượt mà.
+      // Giữ kết nối TCP và Wi-Fi đủ 1200ms giúp bảng hiển thị chữ ngay lập tức mà không bị chớp tắt / reset!
+      if (cmd04AckOk || ackSuccessCount >= 3) {
+        onLog?.call('  [LƯU FLASH] Đang hoàn tất lưu chương trình vào bộ nhớ card...');
+        await Future.delayed(const Duration(milliseconds: 1200));
+      }
 
       await sub.cancel();
 
@@ -207,8 +215,8 @@ class WifiService {
     } else {
       onStatus('  [WIFI] Đang kết nối sang Wi-Fi: ${board.ssid}...');
       final connected = await connectToBoardWifi(board.ssid, board.password);
-      // Chờ 900ms để Android/MIUI hoàn tất cấp phát IP DHCP 192.168.4.x
-      await Future.delayed(const Duration(milliseconds: 900));
+      // Chờ 1400ms để Android/MIUI hoàn tất cấp phát IP DHCP 192.168.4.x và ổn định bảng định tuyến ARP của card
+      await Future.delayed(const Duration(milliseconds: 1400));
       await bindCurrentWifi();
 
       if (!connected) {
@@ -238,23 +246,20 @@ class WifiService {
       }
     }
 
-    var sent = await sendPacketsToBoard(
-      ip: board.ip,
-      port: board.port,
-      packets: packets,
-      onLog: onStatus,
-    );
-
-    if (!sent) {
-      onStatus('  [THỬ LẠI] Đang thử truyền lại lần 2 cho ${board.name}...');
-      await Future.delayed(const Duration(milliseconds: 500));
-      await bindCurrentWifi();
+    var sent = false;
+    for (int tryIdx = 1; tryIdx <= 3; tryIdx++) {
+      if (tryIdx > 1) {
+        onStatus('  [THỬ LẠI LẦN $tryIdx/3] Đang ổn định kênh truyền cho ${board.name}...');
+        await Future.delayed(const Duration(milliseconds: 900));
+        await bindCurrentWifi();
+      }
       sent = await sendPacketsToBoard(
         ip: board.ip,
         port: board.port,
         packets: packets,
         onLog: onStatus,
       );
+      if (sent) break;
     }
 
     if (sent) {

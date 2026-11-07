@@ -672,9 +672,9 @@ class HuiduProtocol {
     p3Payload.setRange(5, 5 + progamHds.length, progamHds);
     final p3 = buildPacket(cmd: 0x03, seq: 3, payload: p3Payload);
 
-    // GÓI 4: Cmd 0x04 (Hoàn tất truyền tệp - Bắt buộc 0x05 = progam.hds và transferId Big-Endian!)
+    // GÓI 4: Cmd 0x04 (Hoàn tất truyền tệp - Bắt buộc 0x03 theo chuẩn CHDPack::PackedData(_HD_ENDSENDFILE) tại 0x046FA8)
     final p4Payload = Uint8List(3);
-    p4Payload[0] = 0x05;                     // FileType = 0x05 (progam.hds)
+    p4Payload[0] = 0x03;                     // 0x03 = chuẩn HDSDK EndSendFile
     p4Payload[1] = (transferId >> 8) & 0xFF; // High byte (BE)
     p4Payload[2] = transferId & 0xFF;        // Low byte (BE)
     final p4 = buildPacket(cmd: 0x04, seq: 4, payload: p4Payload);

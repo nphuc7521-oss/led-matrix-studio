@@ -97,12 +97,25 @@ class MainActivity: FlutterActivity() {
         try {
             val cm = connectivityManager ?: return false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                var targetNet: Network? = null
                 for (network in cm.allNetworks) {
                     val caps = cm.getNetworkCapabilities(network)
+                    val lp = cm.getLinkProperties(network)
                     if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                        val bound = cm.bindProcessToNetwork(network)
-                        return bound
+                        val hasIp4 = lp?.linkAddresses?.any {
+                            it.address.hostAddress?.startsWith("192.168.4.") == true
+                        } == true
+                        if (hasIp4) {
+                            targetNet = network
+                            break
+                        }
+                        if (targetNet == null) {
+                            targetNet = network
+                        }
                     }
+                }
+                if (targetNet != null) {
+                    return cm.bindProcessToNetwork(targetNet)
                 }
             }
         } catch (e: Exception) {
