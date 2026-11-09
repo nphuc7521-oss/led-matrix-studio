@@ -20,7 +20,7 @@ class LedMatrixApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Đồng Bộ LED Ma Trận HD-WF2',
+      title: 'SkyArt - LED Studio',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,

@@ -170,19 +170,29 @@ class _HomeScreenState extends State<HomeScreen>
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              width: 32,
+              height: 32,
+              padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
-                color: const Color(0xFF06B6D4).withOpacity(0.15),
+                color: const Color(0xFF182234),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF06B6D4).withOpacity(0.4)),
               ),
-              child: const Icon(Icons.flash_on, color: Color(0xFF06B6D4), size: 18),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.flash_on, color: Color(0xFF06B6D4), size: 18),
+                ),
+              ),
             ),
             const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'HD2020 LED STUDIO PRO',
+                  'SKYART LED STUDIO',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 14,
@@ -193,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen>
                 Text(
                   syncController.currentConnectedWifi.isNotEmpty
                       ? '🟢 Wi-Fi: ${syncController.currentConnectedWifi}'
-                      : (lang == 'th' ? '📡 พร้อมควบคุม Dark Studio V18' : '📡 Sẵn sàng điều khiển Dark Studio V18'),
+                      : (lang == 'th' ? '📡 พร้อมควบคุม SkyArt V18' : '📡 Sẵn sàng điều khiển SkyArt V18'),
                   style: TextStyle(
                     fontSize: 10,
                     color: syncController.currentConnectedWifi.isNotEmpty
