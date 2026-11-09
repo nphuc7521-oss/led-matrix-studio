@@ -262,6 +262,13 @@ class HuiduProtocol {
       fontSize: curFontSize.toDouble(),
       fontWeight: weight,
       fontStyle: FontStyle.normal,
+      fontFamilyFallback: const [
+        'Noto Sans Thai',
+        'Sukhumvit Set',
+        'Thonburi',
+        'Arial',
+        'Tahoma',
+      ],
       height: 1.0,
     );
 

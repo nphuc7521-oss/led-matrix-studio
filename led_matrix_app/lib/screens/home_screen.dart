@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/board.dart';
 import '../services/sync_controller.dart';
 import '../services/huidu_protocol.dart';
+import '../services/app_translations.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,51 +23,63 @@ class _HomeScreenState extends State<HomeScreen>
   final ScrollController _logScrollController = ScrollController();
   bool _isSimPaused = false;
 
-  final List<Map<String, dynamic>> _colors = [
-    {'name': 'Xanh Lá', 'id': 'green', 'color': const Color(0xFF00E676)},
-    {'name': 'Đỏ', 'id': 'red', 'color': const Color(0xFFFF3333)},
-    {'name': 'Vàng', 'id': 'yellow', 'color': const Color(0xFFFFEB3B)},
-    {'name': 'Xanh Dương', 'id': 'blue', 'color': const Color(0xFF2979FF)},
-    {'name': 'Xanh Ngọc', 'id': 'cyan', 'color': const Color(0xFF00E5FF)},
-    {'name': 'Hồng Tím', 'id': 'magenta', 'color': const Color(0xFFF50057)},
-    {'name': 'Trắng', 'id': 'white', 'color': const Color(0xFFFFFFFF)},
-  ];
+  List<Map<String, dynamic>> _getColors(String lang) {
+    final bool isTh = lang == 'th';
+    return [
+      {'name': isTh ? 'เขียว' : 'Xanh Lá', 'id': 'green', 'color': const Color(0xFF00E676)},
+      {'name': isTh ? 'แดง' : 'Đỏ', 'id': 'red', 'color': const Color(0xFFFF3333)},
+      {'name': isTh ? 'เหลือง' : 'Vàng', 'id': 'yellow', 'color': const Color(0xFFFFEB3B)},
+      {'name': isTh ? 'น้ำเงิน' : 'Xanh Dương', 'id': 'blue', 'color': const Color(0xFF2979FF)},
+      {'name': isTh ? 'ฟ้าคราม' : 'Xanh Ngọc', 'id': 'cyan', 'color': const Color(0xFF00E5FF)},
+      {'name': isTh ? 'ชมพูม่วง' : 'Hồng Tím', 'id': 'magenta', 'color': const Color(0xFFF50057)},
+      {'name': isTh ? 'ขาว' : 'Trắng', 'id': 'white', 'color': const Color(0xFFFFFFFF)},
+    ];
+  }
 
-  final List<Map<String, dynamic>> _rainbowPresets = [
-    {'id': 0, 'name': '🚫 Đơn sắc'},
-    {'id': 1, 'name': '🌈 Cầu Vồng 1'},
-    {'id': 2, 'name': '🌈 Cầu Vồng 2'},
-    {'id': 3, 'name': '🌈 Cầu Vồng 3'},
-    {'id': 4, 'name': '🔥 Lửa Đỏ Vàng'},
-    {'id': 5, 'name': '🌊 Đại Dương'},
-    {'id': 6, 'name': '🌆 Hoàng Hôn'},
-    {'id': 7, 'name': '⚡ Neon Sóng'},
-    {'id': 8, 'name': '🔮 Cyberpunk'},
-  ];
+  List<Map<String, dynamic>> _getRainbowPresets(String lang) {
+    final bool isTh = lang == 'th';
+    return [
+      {'id': 0, 'name': isTh ? '🚫 สีเดียว' : '🚫 Đơn sắc'},
+      {'id': 1, 'name': isTh ? '🌈 สายรุ้ง 1' : '🌈 Cầu Vồng 1'},
+      {'id': 2, 'name': isTh ? '🌈 สายรุ้ง 2' : '🌈 Cầu Vồng 2'},
+      {'id': 3, 'name': isTh ? '🌈 สายรุ้ง 3' : '🌈 Cầu Vồng 3'},
+      {'id': 4, 'name': isTh ? '🔥 ไฟ แดง-เหลือง' : '🔥 Lửa Đỏ Vàng'},
+      {'id': 5, 'name': isTh ? '🌊 มหาสมุทร' : '🌊 Đại Dương'},
+      {'id': 6, 'name': isTh ? '🌆 อาทิตย์อัสดง' : '🌆 Hoàng Hôn'},
+      {'id': 7, 'name': isTh ? '⚡ คลื่นนีออน' : '⚡ Neon Sóng'},
+      {'id': 8, 'name': isTh ? '🔮 ไซเบอร์พังก์' : '🔮 Cyberpunk'},
+    ];
+  }
 
-  final List<Map<String, dynamic>> _effects = [
-    {'name': '⬅ Chạy sang trái (Move Left)', 'id': 1},
-    {'name': '➡ Chạy sang phải (Move Right)', 'id': 2},
-    {'name': '⬆ Cuộn lên trên (Pull Up)', 'id': 37},
-    {'name': '⬇ Cuộn xuống dưới (Pull Down)', 'id': 36},
-    {'name': '↕ Kéo giãn dọc 2 chiều', 'id': 38},
-    {'name': '↔ Kéo giãn ngang 2 chiều', 'id': 39},
-    {'name': '↔ Mở từ giữa ra 2 bên', 'id': 11},
-    {'name': '❄ Tuyết rơi (Snow)', 'id': 28},
-    {'name': '✨ Nhấp nháy (Twinkle)', 'id': 34},
-    {'name': '⏩ Chạy liên tục không dừng', 'id': 202},
-    {'name': '⏹ Đứng yên tĩnh (Immediate)', 'id': 0},
-  ];
+  List<Map<String, dynamic>> _getEffects(String lang) {
+    final bool isTh = lang == 'th';
+    return [
+      {'name': isTh ? '⬅ เลื่อนไปทางซ้าย (Move Left)' : '⬅ Chạy sang trái (Move Left)', 'id': 1},
+      {'name': isTh ? '➡ เลื่อนไปทางขวา (Move Right)' : '➡ Chạy sang phải (Move Right)', 'id': 2},
+      {'name': isTh ? '⬆ เลื่อนขึ้นบน (Pull Up)' : '⬆ Cuộn lên trên (Pull Up)', 'id': 37},
+      {'name': isTh ? '⬇ เลื่อนลงล่าง (Pull Down)' : '⬇ Cuộn xuống dưới (Pull Down)', 'id': 36},
+      {'name': isTh ? '↕ ขยายแนวตั้ง 2 ทิศทาง' : '↕ Kéo giãn dọc 2 chiều', 'id': 38},
+      {'name': isTh ? '↔ ขยายแนวนอน 2 ทิศทาง' : '↔ Kéo giãn ngang 2 chiều', 'id': 39},
+      {'name': isTh ? '↔ แยกออกจากตรงกลาง' : '↔ Mở từ giữa ra 2 bên', 'id': 11},
+      {'name': isTh ? '❄ หิมะตก (Snow)' : '❄ Tuyết rơi (Snow)', 'id': 28},
+      {'name': isTh ? '✨ กระพริบ (Twinkle)' : '✨ Nhấp nháy (Twinkle)', 'id': 34},
+      {'name': isTh ? '⏩ วิ่งต่อเนื่องไม่หยุด' : '⏩ Chạy liên tục không dừng', 'id': 202},
+      {'name': isTh ? '⏹ หยุดนิ่ง (Immediate)' : '⏹ Đứng yên tĩnh (Immediate)', 'id': 0},
+    ];
+  }
 
-  final List<Map<String, dynamic>> _borders = [
-    {'name': 'Mẫu 001 (Chấm bi Đỏ - Vàng - Lục)', 'id': 1},
-    {'name': 'Mẫu 002 (Sao lấp lánh Trắng - Xanh)', 'id': 2},
-    {'name': 'Mẫu 003 (Sóng 7 màu liên tục)', 'id': 3},
-    {'name': 'Mẫu 004 (Viền đa sắc Đỏ - Lục - Lam)', 'id': 4},
-    {'name': 'Mẫu 005 (Kim cương Tím - Xanh ngọc)', 'id': 5},
-    {'name': 'Mẫu 006 (Đường gạch neon Vàng - Đỏ)', 'id': 6},
-    {'name': 'Mẫu 007 (Vệt sao băng Xanh - Vàng)', 'id': 7},
-  ];
+  List<Map<String, dynamic>> _getBorders(String lang) {
+    final bool isTh = lang == 'th';
+    return [
+      {'name': isTh ? 'แบบ 001 (จุด แดง-เหลือง-เขียว)' : 'Mẫu 001 (Chấm bi Đỏ - Vàng - Lục)', 'id': 1},
+      {'name': isTh ? 'แบบ 002 (ดาวระยิบระยับ ขาว-ฟ้า)' : 'Mẫu 002 (Sao lấp lánh Trắng - Xanh)', 'id': 2},
+      {'name': isTh ? 'แบบ 003 (คลื่น 7 สีต่อเนื่อง)' : 'Mẫu 003 (Sóng 7 màu liên tục)', 'id': 3},
+      {'name': isTh ? 'แบบ 004 (หลากสี แดง-เขียว-น้ำเงิน)' : 'Mẫu 004 (Viền đa sắc Đỏ - Lục - Lam)', 'id': 4},
+      {'name': isTh ? 'แบบ 005 (เพชร ม่วง-ฟ้า)' : 'Mẫu 005 (Kim cương Tím - Xanh ngọc)', 'id': 5},
+      {'name': isTh ? 'แบบ 006 (เส้นนีออน เหลือง-แดง)' : 'Mẫu 006 (Đường gạch neon Vàng - Đỏ)', 'id': 6},
+      {'name': isTh ? 'แบบ 007 (ดาวตก เขียว-เหลือง)' : 'Mẫu 007 (Vệt sao băng Xanh - Vàng)', 'id': 7},
+    ];
+  }
 
   final List<String> _fontFamilies = [
     'Arial',
@@ -145,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     final syncController = context.watch<SyncController>();
     final currentBoard = syncController.currentBoard;
+    final lang = syncController.currentLanguage;
     _syncTextFromBoard(currentBoard);
     _checkAndUpdateMask(currentBoard);
 
@@ -179,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen>
                 Text(
                   syncController.currentConnectedWifi.isNotEmpty
                       ? '🟢 Wi-Fi: ${syncController.currentConnectedWifi}'
-                      : '📡 Sẵn sàng điều khiển Dark Studio V18',
+                      : (lang == 'th' ? '📡 พร้อมควบคุม Dark Studio V18' : '📡 Sẵn sàng điều khiển Dark Studio V18'),
                   style: TextStyle(
                     fontSize: 10,
                     color: syncController.currentConnectedWifi.isNotEmpty
@@ -192,15 +206,49 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
         actions: [
+          // Nút chuyển đổi nhanh ngôn ngữ Việt / Thái
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFF182234),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF06B6D4).withOpacity(0.5)),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                final nextLang = lang == 'vi' ? 'th' : 'vi';
+                syncController.setLanguage(nextLang);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      lang == 'vi' ? '🇻🇳 VI' : '🇹🇭 TH',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF06B6D4),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.swap_horiz, size: 13, color: Color(0xFF06B6D4)),
+                  ],
+                ),
+              ),
+            ),
+          ),
           IconButton(
-            tooltip: 'Chọn nhanh Wi-Fi Card LED',
+            tooltip: AppTranslations.tr('wifi_tooltip', lang),
             icon: const Icon(Icons.wifi_find, color: Color(0xFF06B6D4)),
             onPressed: () {
               syncController.openSystemWifiPanel();
             },
           ),
           IconButton(
-            tooltip: 'Cài đặt SSID & Mật khẩu',
+            tooltip: AppTranslations.tr('settings_title', lang),
             icon: const Icon(Icons.settings, color: Color(0xFF94A3B8)),
             onPressed: () {
               Navigator.push(
@@ -220,37 +268,37 @@ class _HomeScreenState extends State<HomeScreen>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 1. THANH CHỌN BẢNG LED (3 TABS BẢNG 1, 2, 3)
-                  _buildBoardSelector(syncController),
+                  _buildBoardSelector(syncController, lang),
 
                   const SizedBox(height: 12),
 
                   // 2. MÔ PHỎNG MÀN HÌNH LED (ĐỘ PHÂN GIẢI ĐỘNG)
-                  _buildSimulatorSection(currentBoard),
+                  _buildSimulatorSection(currentBoard, lang),
 
                   const SizedBox(height: 14),
 
                   // 3. CẤU HÌNH ĐỘ PHÂN GIẢI BẢNG LED (THỊ TRƯỜNG & TÙY CHỈNH)
-                  _buildResolutionSection(syncController, currentBoard),
+                  _buildResolutionSection(syncController, currentBoard, lang),
 
                   const SizedBox(height: 14),
 
                   // 4. SOẠN THẢO VĂN BẢN (TYPOGRAPHY & TEXT)
-                  _buildTypographySection(syncController, currentBoard),
+                  _buildTypographySection(syncController, currentBoard, lang),
 
                   const SizedBox(height: 14),
 
                   // 5. HIỆU ỨNG CHUYỂN ĐỘNG & TỐC ĐỘ (MOTION)
-                  _buildMotionSection(syncController, currentBoard),
+                  _buildMotionSection(syncController, currentBoard, lang),
 
                   const SizedBox(height: 14),
 
                   // 6. VIỀN CHẠY ĐỘC LẬP (RUN BORDER)
-                  _buildRunBorderSection(syncController, currentBoard),
+                  _buildRunBorderSection(syncController, currentBoard, lang),
 
                   const SizedBox(height: 14),
 
                   // 7. NHẬT KÝ ĐIỀU KHIỂN (CONSOLE LOGS)
-                  _buildLogsSection(syncController),
+                  _buildLogsSection(syncController, lang),
 
                   const SizedBox(height: 20),
                 ],
@@ -259,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
 
           // 7. THANH NẠP STICKY DƯỚI CÙNG
-          _buildBottomStickyBar(syncController, currentBoard),
+          _buildBottomStickyBar(syncController, currentBoard, lang),
         ],
       ),
     );
@@ -268,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen>
   // =========================================================================
   // 1. THANH CHỌN BẢNG LED
   // =========================================================================
-  Widget _buildBoardSelector(SyncController sync) {
+  Widget _buildBoardSelector(SyncController sync, String lang) {
     return Row(
       children: List.generate(sync.boards.length, (idx) {
         final b = sync.boards[idx];
@@ -351,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    b.text.isEmpty ? '(Trống)' : b.text,
+                    b.text.isEmpty ? (lang == 'th' ? '(ว่าง)' : '(Trống)') : b.text,
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
@@ -372,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen>
   // =========================================================================
   // 2. MÔ PHỎNG MÀN HÌNH LED 64x32
   // =========================================================================
-  Widget _buildSimulatorSection(LedBoard b) {
+  Widget _buildSimulatorSection(LedBoard b, String lang) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF111827),
@@ -391,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen>
                   const Icon(Icons.tv, size: 14, color: Color(0xFF06B6D4)),
                   const SizedBox(width: 6),
                   Text(
-                    'MÔ PHỎNG: ${b.name} (${b.width} × ${b.height} px)',
+                    '${AppTranslations.tr('sim_title', lang)}: ${b.name} (${b.width} × ${b.height} px)',
                     style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
@@ -427,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _isSimPaused ? 'Chạy' : 'Dừng',
+                        _isSimPaused ? AppTranslations.tr('sim_play', lang) : AppTranslations.tr('sim_pause', lang),
                         style: const TextStyle(fontSize: 10, color: Color(0xFF06B6D4)),
                       ),
                     ],
@@ -519,11 +567,13 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 Text(
-                  'Hiệu ứng: ${_getEffectName(b.effect)}',
+                  '${AppTranslations.tr('badge_effect', lang)}: ${_getEffectName(b.effect, lang)}',
                   style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
                 ),
                 Text(
-                  b.borderStyle > 0 ? 'Viền: BẬT (Mẫu ${b.borderStyle})' : 'Viền: TẮT',
+                  b.borderStyle > 0
+                      ? '${AppTranslations.tr('badge_border_on', lang)} (${lang == 'th' ? 'แบบ' : 'Mẫu'} ${b.borderStyle})'
+                      : AppTranslations.tr('badge_border_off', lang),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -559,7 +609,7 @@ class _HomeScreenState extends State<HomeScreen>
   // =========================================================================
   // 3. CẤU HÌNH ĐỘ PHÂN GIẢI BẢNG LED (RESOLUTION CHO TỪNG BẢNG HOẶC TẤT CẢ)
   // =========================================================================
-  Widget _buildResolutionSection(SyncController sync, LedBoard b) {
+  Widget _buildResolutionSection(SyncController sync, LedBoard b, String lang) {
     final standardPresets = [
       {'label': '64 × 32 px (1 tấm P4/P5)', 'w': 64, 'h': 32},
       {'label': '96 × 32 px (1.5 tấm P5 / 3 tấm P10)', 'w': 96, 'h': 32},
@@ -602,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen>
                   const Icon(Icons.aspect_ratio, size: 14, color: Color(0xFF06B6D4)),
                   const SizedBox(width: 6),
                   Text(
-                    'Độ Phân Giải: ${b.name}',
+                    '${AppTranslations.tr('res_title', lang)}: ${b.name}',
                     style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
@@ -612,7 +662,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
               GestureDetector(
-                onTap: () => _showCustomResolutionDialog(context, sync, b),
+                onTap: () => _showCustomResolutionDialog(context, sync, b, lang),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -622,13 +672,13 @@ class _HomeScreenState extends State<HomeScreen>
                       color: const Color(0xFF06B6D4).withOpacity(0.5),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.edit, size: 11, color: Color(0xFF06B6D4)),
-                      SizedBox(width: 4),
+                      const Icon(Icons.edit, size: 11, color: Color(0xFF06B6D4)),
+                      const SizedBox(width: 4),
                       Text(
-                        'Nhập số đo...',
-                        style: TextStyle(
+                        AppTranslations.tr('res_btn_custom', lang),
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF06B6D4),
@@ -669,8 +719,10 @@ class _HomeScreenState extends State<HomeScreen>
                     value: 'custom',
                     child: Text(
                       isKnownPreset
-                          ? '⚙ Tùy chỉnh kích thước khác...'
-                          : '⚙ Tùy chỉnh: ${b.width} × ${b.height} px',
+                          ? AppTranslations.tr('res_custom_dropdown', lang)
+                          : (lang == 'th'
+                              ? '⚙ กำหนดเอง: ${b.width} × ${b.height} px'
+                              : '⚙ Tùy chỉnh: ${b.width} × ${b.height} px'),
                       style: const TextStyle(
                         color: Color(0xFF06B6D4),
                         fontWeight: FontWeight.bold,
@@ -681,7 +733,7 @@ class _HomeScreenState extends State<HomeScreen>
                 onChanged: (val) {
                   if (val == null) return;
                   if (val == 'custom') {
-                    _showCustomResolutionDialog(context, sync, b);
+                    _showCustomResolutionDialog(context, sync, b, lang);
                   } else {
                     final parts = val.split('x');
                     final nw = int.tryParse(parts[0]) ?? 64;
@@ -762,6 +814,7 @@ class _HomeScreenState extends State<HomeScreen>
     BuildContext context,
     SyncController sync,
     LedBoard b,
+    String lang,
   ) {
     final wCtrl = TextEditingController(text: b.width.toString());
     final hCtrl = TextEditingController(text: b.height.toString());
@@ -781,7 +834,7 @@ class _HomeScreenState extends State<HomeScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Tùy Chỉnh Kích Thước (${b.name})',
+                  '${AppTranslations.tr('res_dialog_title', lang)} (${b.name})',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -795,9 +848,9 @@ class _HomeScreenState extends State<HomeScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Nhập số điểm ảnh (pixel) ngang và dọc của bảng LED:',
-                style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              Text(
+                AppTranslations.tr('res_dialog_desc', lang),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
               ),
               const SizedBox(height: 12),
               Row(
@@ -812,7 +865,7 @@ class _HomeScreenState extends State<HomeScreen>
                         fontWeight: FontWeight.bold,
                       ),
                       decoration: InputDecoration(
-                        labelText: 'Chiều Rộng (Width)',
+                        labelText: AppTranslations.tr('res_dialog_width', lang),
                         labelStyle: const TextStyle(
                           color: Color(0xFF94A3B8),
                           fontSize: 11,
@@ -856,7 +909,7 @@ class _HomeScreenState extends State<HomeScreen>
                         fontWeight: FontWeight.bold,
                       ),
                       decoration: InputDecoration(
-                        labelText: 'Chiều Cao (Height)',
+                        labelText: AppTranslations.tr('res_dialog_height', lang),
                         labelStyle: const TextStyle(
                           color: Color(0xFF94A3B8),
                           fontSize: 11,
@@ -889,9 +942,9 @@ class _HomeScreenState extends State<HomeScreen>
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: const Color(0xFF1E293B)),
                 ),
-                child: const Text(
-                  '💡 Lưu ý: Chiều rộng nên là bội số của 8 hoặc 16 (ví dụ: 64, 96, 128, 160, 192, 256...) để điểm ảnh thẳng hàng và sắc nét nhất.',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF06B6D4)),
+                child: Text(
+                  AppTranslations.tr('res_dialog_hint', lang),
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF06B6D4)),
                 ),
               ),
             ],
@@ -899,7 +952,10 @@ class _HomeScreenState extends State<HomeScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Hủy', style: TextStyle(color: Color(0xFF94A3B8))),
+              child: Text(
+                AppTranslations.tr('res_dialog_cancel', lang),
+                style: const TextStyle(color: Color(0xFF94A3B8)),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -915,9 +971,9 @@ class _HomeScreenState extends State<HomeScreen>
                 }
                 Navigator.pop(ctx);
               },
-              child: const Text(
-                'Lưu Cho Bảng Này',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: Text(
+                AppTranslations.tr('res_dialog_save_single', lang),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             TextButton(
@@ -931,13 +987,17 @@ class _HomeScreenState extends State<HomeScreen>
                     sync.boards[i].height = nh;
                   }
                   sync.notifyListeners();
-                  sync.addLog('📐 Đã áp dụng ${nw}x$nh px cho tất cả các bảng!');
+                  sync.addLog(
+                    lang == 'th'
+                        ? '📐 ปรับใช้ ${nw}x$nh px กับทุกบอร์ดเรียบร้อยแล้ว!'
+                        : '📐 Đã áp dụng ${nw}x$nh px cho tất cả các bảng!',
+                  );
                 }
                 Navigator.pop(ctx);
               },
-              child: const Text(
-                'Áp dụng Cả 3 Bảng',
-                style: TextStyle(color: Color(0xFF10B981), fontSize: 11),
+              child: Text(
+                AppTranslations.tr('res_dialog_save_all', lang),
+                style: const TextStyle(color: Color(0xFF10B981), fontSize: 11),
               ),
             ),
           ],
@@ -949,7 +1009,7 @@ class _HomeScreenState extends State<HomeScreen>
   // =========================================================================
   // 4. SOẠN THẢO VĂN BẢN (TYPOGRAPHY)
   // =========================================================================
-  Widget _buildTypographySection(SyncController sync, LedBoard b) {
+  Widget _buildTypographySection(SyncController sync, LedBoard b, String lang) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF111827),
@@ -965,7 +1025,7 @@ class _HomeScreenState extends State<HomeScreen>
               const Icon(Icons.text_fields, size: 14, color: Color(0xFF06B6D4)),
               const SizedBox(width: 6),
               Text(
-                'Nội Dung & Kiểu Chữ: ${b.name}',
+                '${AppTranslations.tr('typo_title', lang)}: ${b.name}',
                 style: const TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
@@ -1074,7 +1134,7 @@ class _HomeScreenState extends State<HomeScreen>
 
               // Nút [AB] 7 MÀU RAINBOW
               GestureDetector(
-                onTap: () => _showRainbowPicker(context, sync, b),
+                onTap: () => _showRainbowPicker(context, sync, b, lang),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
@@ -1106,7 +1166,9 @@ class _HomeScreenState extends State<HomeScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        b.colorfulWords > 0 ? '✓ [AB] 7 MÀU' : '[AB] 7 MÀU',
+                        b.colorfulWords > 0
+                            ? '✓ ${AppTranslations.tr('typo_rainbow_btn', lang)}'
+                            : AppTranslations.tr('typo_rainbow_btn', lang),
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w900,
@@ -1125,7 +1187,7 @@ class _HomeScreenState extends State<HomeScreen>
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: _colors.map((c) {
+                  children: _getColors(lang).map((c) {
                     final isAct = b.colorfulWords == 0 && b.color == c['id'];
                     return GestureDetector(
                       onTap: () {
@@ -1160,7 +1222,7 @@ class _HomeScreenState extends State<HomeScreen>
 
           const SizedBox(height: 10),
 
-          // Ô NHẬP NỘI DUNG CHỮ TIẾNG VIỆT
+          // Ô NHẬP NỘI DUNG CHỮ
           TextField(
             controller: _textController,
             style: const TextStyle(
@@ -1169,7 +1231,7 @@ class _HomeScreenState extends State<HomeScreen>
               fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
-              hintText: 'Nhập nội dung chữ hiển thị lên LED...',
+              hintText: AppTranslations.tr('typo_text_hint', lang),
               hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
               filled: true,
               fillColor: const Color(0xFF182234),
@@ -1252,7 +1314,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _showRainbowPicker(BuildContext context, SyncController sync, LedBoard b) {
+  void _showRainbowPicker(BuildContext context, SyncController sync, LedBoard b, String lang) {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF111827),
@@ -1269,9 +1331,9 @@ class _HomeScreenState extends State<HomeScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    '🌈 Chọn Mẫu Chữ 7 Màu Rainbow [AB]',
-                    style: TextStyle(
+                  Text(
+                    '🌈 ${AppTranslations.tr('typo_rainbow_btn', lang)}',
+                    style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFF8FAFC),
@@ -1287,7 +1349,7 @@ class _HomeScreenState extends State<HomeScreen>
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _rainbowPresets.map((rp) {
+                children: _getRainbowPresets(lang).map((rp) {
                   final active = b.colorfulWords == rp['id'];
                   return GestureDetector(
                     onTap: () {
@@ -1324,9 +1386,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // =========================================================================
-  // 4. HIỆU ỨNG CHUYỂN ĐỘNG & TỐC ĐỘ (MOTION)
+  // 5. HIỆU ỨNG CHUYỂN ĐỘNG & TỐC ĐỘ (MOTION)
   // =========================================================================
-  Widget _buildMotionSection(SyncController sync, LedBoard b) {
+  Widget _buildMotionSection(SyncController sync, LedBoard b, String lang) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF111827),
@@ -1337,13 +1399,13 @@ class _HomeScreenState extends State<HomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.slow_motion_video, size: 14, color: Color(0xFF06B6D4)),
-              SizedBox(width: 6),
+              const Icon(Icons.slow_motion_video, size: 14, color: Color(0xFF06B6D4)),
+              const SizedBox(width: 6),
               Text(
-                'Hiệu Ứng Di Chuyển & Tốc Độ',
-                style: TextStyle(
+                AppTranslations.tr('motion_title', lang),
+                style: const TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFFF8FAFC),
@@ -1368,7 +1430,7 @@ class _HomeScreenState extends State<HomeScreen>
                 isExpanded: true,
                 dropdownColor: const Color(0xFF182234),
                 style: const TextStyle(fontSize: 11.5, color: Color(0xFFF8FAFC)),
-                items: _effects.map((e) {
+                items: _getEffects(lang).map((e) {
                   return DropdownMenuItem(
                     value: e['id'] as int,
                     child: Text(e['name'] as String),
@@ -1391,7 +1453,7 @@ class _HomeScreenState extends State<HomeScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Tốc độ: ${b.speed} (1: Rất nhanh, 20: Chậm)',
+                      '${AppTranslations.tr('motion_speed_label', lang)}: ${b.speed}',
                       style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
                     ),
                     SliderTheme(
@@ -1420,7 +1482,7 @@ class _HomeScreenState extends State<HomeScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Dừng: ${b.stayTime} giây',
+                      '${AppTranslations.tr('motion_stay_label', lang)}: ${b.stayTime} ${lang == 'th' ? 'วินาที' : 'giây'}',
                       style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
                     ),
                     SliderTheme(
@@ -1447,14 +1509,16 @@ class _HomeScreenState extends State<HomeScreen>
           ),
 
           // Badge ClearType chuẩn 201
-          const Row(
+          Row(
             children: [
-              Icon(Icons.check_circle, size: 12, color: Color(0xFF10B981)),
-              SizedBox(width: 4),
+              const Icon(Icons.check_circle, size: 12, color: Color(0xFF10B981)),
+              const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  'Do not clear (Clear=201) giúp chữ chạy mượt không chớp đen',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+                  lang == 'th'
+                      ? 'Do not clear (Clear=201) ข้อความไหลลื่นไม่กระพริบดำ'
+                      : 'Do not clear (Clear=201) giúp chữ chạy mượt không chớp đen',
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1466,9 +1530,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // =========================================================================
-  // 5. VIỀN CHẠY ĐỘC LẬP (RUN BORDER)
+  // 6. VIỀN CHẠY ĐỘC LẬP (RUN BORDER)
   // =========================================================================
-  Widget _buildRunBorderSection(SyncController sync, LedBoard b) {
+  Widget _buildRunBorderSection(SyncController sync, LedBoard b, String lang) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF111827),
@@ -1482,13 +1546,13 @@ class _HomeScreenState extends State<HomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.crop_square, size: 14, color: Color(0xFF06B6D4)),
-                  SizedBox(width: 6),
+                  const Icon(Icons.crop_square, size: 14, color: Color(0xFF06B6D4)),
+                  const SizedBox(width: 6),
                   Text(
-                    'Viền Chạy Độc Lập 4 Cạnh (Run Border)',
-                    style: TextStyle(
+                    AppTranslations.tr('border_title', lang),
+                    style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFFF8FAFC),
@@ -1526,7 +1590,7 @@ class _HomeScreenState extends State<HomeScreen>
                   isExpanded: true,
                   dropdownColor: const Color(0xFF182234),
                   style: const TextStyle(fontSize: 11.5, color: Color(0xFFF8FAFC)),
-                  items: _borders.map((br) {
+                  items: _getBorders(lang).map((br) {
                     return DropdownMenuItem(
                       value: br['id'] as int,
                       child: Text(br['name'] as String),
@@ -1549,9 +1613,9 @@ class _HomeScreenState extends State<HomeScreen>
                 Expanded(
                   child: Row(
                     children: [
-                      const Text('Hướng: ', style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8))),
+                      Text('${AppTranslations.tr('border_dir', lang)}: ', style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8))),
                       ChoiceChip(
-                        label: const Text('Thuận (CW)', style: TextStyle(fontSize: 10)),
+                        label: Text(lang == 'th' ? 'ตามเข็ม (CW)' : 'Thuận (CW)', style: const TextStyle(fontSize: 10)),
                         selected: b.borderMode == 'Clockwise',
                         selectedColor: const Color(0xFF06B6D4),
                         onSelected: (s) {
@@ -1560,7 +1624,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(width: 4),
                       ChoiceChip(
-                        label: const Text('Ngược', style: TextStyle(fontSize: 10)),
+                        label: Text(lang == 'th' ? 'ทวนเข็ม' : 'Ngược', style: const TextStyle(fontSize: 10)),
                         selected: b.borderMode != 'Clockwise',
                         selectedColor: const Color(0xFF06B6D4),
                         onSelected: (s) {
@@ -1579,9 +1643,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // =========================================================================
-  // 6. NHẬT KÝ ĐIỀU KHIỂN & CONSOLE
+  // 7. NHẬT KÝ ĐIỀU KHIỂN & CONSOLE
   // =========================================================================
-  Widget _buildLogsSection(SyncController sync) {
+  Widget _buildLogsSection(SyncController sync, String lang) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF111827),
@@ -1595,13 +1659,13 @@ class _HomeScreenState extends State<HomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.terminal, size: 14, color: Color(0xFF06B6D4)),
-                  SizedBox(width: 6),
+                  const Icon(Icons.terminal, size: 14, color: Color(0xFF06B6D4)),
+                  const SizedBox(width: 6),
                   Text(
-                    'Nhật Ký Truyền Dữ Liệu (Console)',
-                    style: TextStyle(
+                    AppTranslations.tr('logs_title', lang),
+                    style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFFF8FAFC),
@@ -1611,9 +1675,9 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               GestureDetector(
                 onTap: () => sync.clearLogs(),
-                child: const Text(
-                  'Xóa nhật ký',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF06B6D4)),
+                child: Text(
+                  AppTranslations.tr('logs_clear', lang),
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF06B6D4)),
                 ),
               ),
             ],
@@ -1659,9 +1723,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // =========================================================================
-  // 7. THANH NẠP STICKY DƯỚI CÙNG
+  // 8. THANH NẠP STICKY DƯỚI CÙNG
   // =========================================================================
-  Widget _buildBottomStickyBar(SyncController sync, LedBoard b) {
+  Widget _buildBottomStickyBar(SyncController sync, LedBoard b, String lang) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: const BoxDecoration(
@@ -1691,10 +1755,10 @@ class _HomeScreenState extends State<HomeScreen>
                         await sync.syncAllBoards();
                       },
                 child: sync.isSyncing
-                    ? const Row(
+                    ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          SizedBox(
+                          const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
@@ -1702,23 +1766,23 @@ class _HomeScreenState extends State<HomeScreen>
                               color: Colors.black,
                             ),
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Text(
-                            'ĐANG NẠP DỮ LIỆU...',
-                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                            AppTranslations.tr('btn_syncing', lang),
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
                           ),
                         ],
                       )
-                    : const FittedBox(
+                    : FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.bolt, size: 18),
-                            SizedBox(width: 6),
+                            const Icon(Icons.bolt, size: 18),
+                            const SizedBox(width: 6),
                             Text(
-                              '⚡ GỬI ĐỒNG BỘ CẢ 3 BẢNG (AUTO SYNC)',
-                              style: TextStyle(
+                              '⚡ ${AppTranslations.tr('btn_sync_all', lang)}',
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 12.5,
                                 letterSpacing: 0.3,
@@ -1757,7 +1821,7 @@ class _HomeScreenState extends State<HomeScreen>
                       const Icon(Icons.wifi_tethering, size: 16),
                       const SizedBox(width: 6),
                       Text(
-                        '📡 NẠP RIÊNG ${b.name} (${b.ssid})',
+                        '📡 ${AppTranslations.tr('btn_sync_single', lang)} ${b.name} (${b.ssid})',
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 12,
@@ -1774,10 +1838,10 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  String _getEffectName(int eff) {
-    final match = _effects.firstWhere(
+  String _getEffectName(int eff, String lang) {
+    final match = _getEffects(lang).firstWhere(
       (e) => e['id'] == eff,
-      orElse: () => {'name': 'Hiệu ứng $eff'},
+      orElse: () => {'name': lang == 'th' ? 'เอฟเฟกต์ $eff' : 'Hiệu ứng $eff'},
     );
     return match['name'] as String;
   }

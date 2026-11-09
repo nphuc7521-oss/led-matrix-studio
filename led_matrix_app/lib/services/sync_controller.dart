@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/board.dart';
 import 'huidu_protocol.dart';
 import 'wifi_service.dart';
@@ -10,16 +11,37 @@ class SyncController extends ChangeNotifier {
   bool isSyncing = false;
   String currentStatus = 'Sẵn sàng điều khiển';
   String currentConnectedWifi = '';
+  String currentLanguage = 'vi'; // 'vi' (Tiếng Việt) hoặc 'th' (ภาษาไทย)
   double progress = 0.0;
   List<String> logs = [
     '[KHỞI ĐỘNG] HD2020 LED Studio V18 Pro sẵn sàng.',
-    'Hỗ trợ điều khiển 3 bảng LED ma trận HUB75 64x32 độc lập.'
+    'Hỗ trợ điều khiển 3 bảng LED ma trận HUB75 độc lập (Tiếng Việt & ภาษาไทย).'
   ];
 
   Timer? _wifiCheckTimer;
 
   SyncController() {
     _startWifiChecker();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      currentLanguage = prefs.getString('app_language') ?? 'vi';
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> setLanguage(String lang) async {
+    if (lang != currentLanguage) {
+      currentLanguage = lang;
+      notifyListeners();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('app_language', lang);
+      } catch (_) {}
+    }
   }
 
   @override
